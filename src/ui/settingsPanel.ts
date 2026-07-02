@@ -121,18 +121,24 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
     if (field.type === 'list') return renderList(field);
 
     if (field.type === 'file') {
-      return fieldWrap(
-        field,
-        h('input', {
-          type: 'file',
-          accept: 'image/*',
-          onChange: (e: Event) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            const handler = fileHandlers.get(field.key);
-            if (file && handler) handler(file);
-          },
-        }),
-      );
+      const err = h('p', { class: 'field-error' });
+      const input = h('input', {
+        type: 'file',
+        accept: 'image/*',
+        onChange: (e: Event) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          const handler = fileHandlers.get(field.key);
+          err.textContent = '';
+          if (file && handler) {
+            Promise.resolve(handler(file)).catch((er) => {
+              err.textContent = er?.message ?? 'Upload failed.';
+            });
+          }
+        },
+      });
+      const wrap = fieldWrap(field, input);
+      wrap.appendChild(err);
+      return wrap;
     }
 
     const cur = getByPath(ctx.settings, field.key);

@@ -114,6 +114,14 @@
   font-size: var(--fs-xs);
   color: var(--text-dim);
 }
+.field-error:empty {
+  display: none;
+}
+.field-error {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--danger);
+}
 
 .settings-list {
   display: flex;

@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Last Sunday — Memento Mori New Tab",
+  "version": "0.1.0",
+  "description": "A memento-mori dashboard: life clock, daily todos, quotes.",
+  "chrome_url_overrides": { "newtab": "newtab.html" },
+  "permissions": ["storage", "unlimitedStorage"],
+  "host_permissions": ["https://api.trello.com/*", "https://zenquotes.io/*"],
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+}

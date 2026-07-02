@@ -1,0 +1,86 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-text);
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100vh;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app { min-height: 100vh; position: relative; }
+
+.slot-background { position: fixed; inset: 0; z-index: 0; }
+
+.layout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  min-height: 100vh;
+  padding: var(--s-6);
+  gap: var(--s-6);
+  align-items: start;
+}
+.slot-main { display: flex; flex-direction: column; gap: var(--s-6); }
+.slot-sidebar { display: flex; flex-direction: column; gap: var(--s-6); }
+
+.slot-corner {
+  position: fixed;
+  bottom: var(--s-5);
+  left: var(--s-5);
+  z-index: 5;
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+}
+
+.slot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+}
+.slot-overlay:empty { display: none; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--elev-1);
+  padding: var(--s-5);
+}
+
+button {
+  font-family: var(--font-text);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-2) var(--s-3);
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+button:hover { border-color: var(--primary); }
+button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+button.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+
+input, select, textarea {
+  font-family: var(--font-text);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-2) var(--s-3);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+}

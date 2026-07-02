@@ -1,0 +1,18 @@
+{
+  "name": "last-sunday-newtab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "icons": "node scripts/make-icons.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "@types/node": "^20.12.0",
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0"
+  }
+}

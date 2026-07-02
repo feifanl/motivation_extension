@@ -1,0 +1,138 @@
+.settings-gear {
+  width: 40px;
+  height: 40px;
+  font-size: var(--fs-lg);
+  line-height: 1;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow: var(--elev-1);
+}
+
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgb(0 0 0 / 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-med);
+}
+.settings-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.settings-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 21;
+  width: 360px;
+  max-width: 90vw;
+  height: 100vh;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--elev-2);
+  transform: translateX(100%);
+  transition: transform var(--t-med);
+  display: flex;
+  flex-direction: column;
+}
+.settings-panel.open {
+  transform: translateX(0);
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--border);
+}
+.settings-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+.settings-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.settings-body {
+  overflow-y: auto;
+  padding: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.settings-section h3 {
+  margin: 0;
+  font-size: var(--fs-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.field-inline {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.field-inline .field-label {
+  order: -1;
+}
+.field-label {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+.field input:not([type='checkbox']):not([type='color']),
+.field select,
+.field textarea {
+  width: 100%;
+}
+.field input[type='color'] {
+  width: 48px;
+  height: 32px;
+  padding: 2px;
+}
+.field-help {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.list-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.list-remove {
+  align-self: flex-end;
+  color: var(--danger);
+}
+.list-add {
+  align-self: flex-start;
+}

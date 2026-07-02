@@ -41,6 +41,10 @@ export interface SettingsField {
   placeholder?: string;
   help?: string;
   itemFields?: SettingsField[]; // for 'list': schema of one row; value is an array of objects
+  newItem?: () => Record<string, unknown>; // for 'list': factory for a new row (e.g. id/index defaults)
+  parse?: (raw: string) => unknown; // textarea/text: string → stored value (e.g. lines → Pin[])
+  format?: (val: unknown) => string; // textarea/text: stored value → string for display
+  showIf?: (settings: Settings) => boolean; // hide field unless predicate holds
 }
 
 export interface DashboardModule {

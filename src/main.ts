@@ -7,6 +7,7 @@ import { loadSettings, saveSettings } from './core/settings';
 import { storage } from './core/storage';
 import { bus } from './core/events';
 import { mountAll } from './core/registry';
+import { mountSettingsPanel } from './ui/settingsPanel';
 import type { ModuleContext, Settings } from './core/types';
 
 function applyTheme(theme: Settings['theme']): void {
@@ -33,7 +34,7 @@ async function boot(): Promise<void> {
   const app = document.getElementById('app')!;
   await mountAll(ctx, app);
 
-  // Settings panel (gear button) mounts here in step 3.
+  mountSettingsPanel(ctx);
 }
 
 boot();

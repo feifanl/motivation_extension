@@ -4,22 +4,12 @@
 .pins-wall {
   position: absolute;
   inset: 0;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   overflow: hidden;
   pointer-events: none; /* only tiles are interactive */
 }
-.pins-row {
-  display: flex;
-  gap: 8px;
-  min-height: 0;
-}
 .pin-item {
   pointer-events: auto;
-  position: relative;
-  min-width: 0;
+  position: absolute; /* x/y/w/h set inline by the masonry layout */
   overflow: hidden;
   border-radius: var(--r-md);
   box-shadow: var(--elev-1);

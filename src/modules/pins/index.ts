@@ -79,43 +79,7 @@ function preload(pool: Pin[]): Promise<Loaded[]> {
   ).then((a) => a.filter((x): x is Loaded => x !== null));
 }
 
-interface Row {
-  items: Loaded[];
-  h: number;
-}
-
-// Fit all images into W×H, filling both. Pick a row count R so rows come out
-// roughly square, partition images into R balanced rows (by aspect sum), size
-// each row to width W, then scale heights so they fill H exactly. Fewer images
-// → fewer rows → bigger tiles; object-fit:cover absorbs the aspect mismatch.
-function layout(imgs: Loaded[], W: number, H: number): Row[] {
-  const totalAspect = imgs.reduce((s, im) => s + im.aspect, 0) || 1;
-  let R = Math.round(Math.sqrt((H * totalAspect) / W));
-  R = Math.max(1, Math.min(R, imgs.length));
-
-  // Bucket by cumulative aspect so each row gets a near-equal aspect sum → even
-  // heights (no runt last row).
-  const target = totalAspect / R;
-  const buckets: Loaded[][] = Array.from({ length: R }, () => []);
-  let cum = 0;
-  for (const im of imgs) {
-    const ri = Math.min(R - 1, Math.floor(cum / target));
-    buckets[ri].push(im);
-    cum += im.aspect;
-  }
-  const groups = buckets.filter((g) => g.length > 0);
-
-  const rows: Row[] = groups.map((items) => {
-    const s = items.reduce((a, x) => a + x.aspect, 0) || 1;
-    return { items, h: (W - GAP * (items.length - 1)) / s };
-  });
-
-  const gaps = GAP * Math.max(0, rows.length - 1);
-  const sumH = rows.reduce((s, r) => s + r.h, 0) || 1;
-  const factor = (H - gaps) / sumH;
-  for (const r of rows) r.h *= factor;
-  return rows;
-}
+const TARGET_COL = 250; // preferred column width; column count derives from viewport
 
 function tile(l: Loaded, idx: number): HTMLElement {
   const img = h('img', { class: 'pin-img', alt: '' }) as HTMLImageElement;
@@ -126,7 +90,6 @@ function tile(l: Loaded, idx: number): HTMLElement {
     img,
   ) as HTMLAnchorElement;
   el.dataset.index = String(idx);
-  el.style.flex = `${l.aspect} 1 0`; // width proportional to aspect; row flexes to fill W
   if (editMode) {
     el.classList.add('pin-editable');
     if (idx === draggingIdx) el.classList.add('pin-dragging');
@@ -136,19 +99,33 @@ function tile(l: Loaded, idx: number): HTMLElement {
   return el;
 }
 
+// Pinterest-style column masonry: fixed-width columns, each pin at its natural
+// aspect, dropped into the shortest column so the wall staggers freely with no
+// visible row grid. Columns fill the viewport; the tallest ones spill off the
+// bottom (clipped) — pin/board rotation cycles what's visible.
 function buildWallDom(loaded: Loaded[]): HTMLElement {
   const wall = h('div', { class: 'pins-wall' });
   if (editMode) wall.classList.add('editing');
-  const W = window.innerWidth - GAP * 2;
-  const Hh = window.innerHeight - GAP * 2;
-  const rows = layout(loaded, W, Hh);
-  let idx = 0; // running index across rows == index into `loaded` (layout preserves order)
-  for (const r of rows) {
-    const rowEl = h('div', { class: 'pins-row' });
-    rowEl.style.height = `${r.h}px`;
-    for (const it of r.items) rowEl.appendChild(tile(it, idx++));
-    wall.appendChild(rowEl);
-  }
+
+  const avail = window.innerWidth - GAP * 2;
+  const cols = Math.max(1, Math.round(avail / TARGET_COL));
+  const colW = (avail - GAP * (cols - 1)) / cols;
+  const colH = new Array(cols).fill(0); // running height of each column
+
+  loaded.forEach((l, idx) => {
+    let c = 0; // shortest column
+    for (let i = 1; i < cols; i++) if (colH[i] < colH[c]) c = i;
+    const tileH = colW / l.aspect;
+    const el = tile(l, idx);
+    el.style.position = 'absolute';
+    el.style.left = `${GAP + c * (colW + GAP)}px`;
+    el.style.top = `${GAP + colH[c]}px`;
+    el.style.width = `${colW}px`;
+    el.style.height = `${tileH}px`;
+    wall.appendChild(el);
+    colH[c] += tileH + GAP;
+  });
+
   return wall;
 }
 

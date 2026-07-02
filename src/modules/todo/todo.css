@@ -1,0 +1,96 @@
+.todo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.todo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.todo-date {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+}
+.todo-clear {
+  font-size: var(--fs-xs);
+  color: var(--danger);
+  padding: var(--s-1) var(--s-2);
+}
+
+.todo-add {
+  display: flex;
+  gap: var(--s-2);
+}
+.todo-input {
+  flex: 1;
+  min-width: 0;
+}
+.todo-prio-select {
+  width: 52px;
+  flex: none;
+}
+
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.todo-item:last-child {
+  border-bottom: none;
+}
+.todo-check {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.todo-text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+.todo-text.done {
+  text-decoration: line-through;
+  color: var(--text-dim);
+}
+.todo-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.todo-dot.high {
+  background: var(--danger);
+}
+.todo-dot.med {
+  background: var(--warn);
+}
+.todo-dot.low {
+  background: var(--text-dim);
+}
+.todo-x {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: var(--fs-md);
+  line-height: 1;
+  color: var(--text-dim);
+  background: transparent;
+  border-color: transparent;
+}
+.todo-x:hover {
+  color: var(--danger);
+  border-color: var(--border);
+}

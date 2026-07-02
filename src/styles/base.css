@@ -23,12 +23,27 @@ body {
   max-width: var(--content-w);
   margin: 0 auto;
   min-height: 100vh;
-  padding: var(--s-6) var(--s-4);
+  /* extra bottom padding reserves the band the fixed quote sits in, so the
+     centered clock never overlaps it */
+  padding: var(--s-6) var(--s-4) var(--quote-reserve);
   display: flex;
   flex-direction: column;
+  /* center vertically, but fall back to top-align (+scroll) instead of clipping
+     the top when a tall view is bigger than the viewport */
+  justify-content: safe center;
   gap: var(--s-6);
 }
 .slot-main { display: flex; flex-direction: column; gap: var(--s-6); }
+/* Quote floats at the bottom of the viewport, out of the centered column. */
+.mod-quote {
+  position: fixed;
+  left: 50%;
+  bottom: var(--s-5);
+  transform: translateX(-50%);
+  width: min(var(--content-w), calc(100vw - 2 * var(--s-5)));
+  z-index: 4;
+  pointer-events: auto;
+}
 /* Center column floats over the pins wall; let clicks fall through its gaps to
    the pins, but keep its cards and controls interactive. */
 .slot-main { pointer-events: none; }

@@ -38,8 +38,13 @@ function renderPanes(): void {
 // and dock the ±controls inside the active pane's box.
 function applyTransform(): void {
   const pane = paneEls[activeIndex];
-  const y = stage.clientHeight / 2 - (pane.offsetTop + pane.offsetHeight / 2);
-  track.style.transform = `translateY(${y}px)`;
+  // Size the stage to the active pane so no view is ever clipped; neighbors
+  // still slide in/out of these bounds (overflow:hidden hides them at rest).
+  // Align the active pane's top to the stage top (stage == pane height, so this
+  // fills it exactly). Use the pane's own height, not stage.clientHeight, which
+  // reports the mid-animation value while the stage height transitions.
+  stage.style.height = `${pane.offsetHeight}px`;
+  track.style.transform = `translateY(${-pane.offsetTop}px)`;
   paneEls.forEach((p, i) => p.classList.toggle('active', i === activeIndex));
   placeZoombar();
 }

@@ -5,8 +5,9 @@
 /* carousel stage: transform-driven vertical picker */
 .lc-stage {
   position: relative;
-  height: 62vh;
+  height: 60vh; /* fallback before JS sizes it to the active pane */
   overflow: hidden;
+  transition: height var(--t-med);
 }
 .lc-track {
   position: relative;

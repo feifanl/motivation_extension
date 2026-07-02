@@ -54,12 +54,15 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
   ctx.bus.on('open-settings', open);
 
   // ---- persistence ----
-  function save(key: string, value: unknown): void {
+  // rerender=false keeps the focused input alive (scalar text/date/number edits);
+  // structural changes (list rows, toggles/selects that drive showIf) rebuild.
+  function save(key: string, value: unknown, rerender = false): void {
     const patch = setByPath({} as Record<string, unknown>, key, value) as DeepPartial<Settings>;
-    ctx.saveSettings(patch).then(render);
+    const p = ctx.saveSettings(patch);
+    if (rerender) p.then(render);
   }
   function saveArray(key: string, arr: unknown[]): void {
-    save(key, arr);
+    save(key, arr, true);
   }
 
   // ---- rendering ----
@@ -111,7 +114,7 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
           onChange: (e: Event) => {
             const on = (e.target as HTMLInputElement).checked;
             const next = on ? [...arr, member] : arr.filter((x) => x !== member);
-            save(base, next);
+            save(base, next, true);
           },
         }),
         true,
@@ -142,7 +145,9 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
     }
 
     const cur = getByPath(ctx.settings, field.key);
-    const control = controlFor(field, cur, (v) => save(field.key, v));
+    // Toggles/selects can drive showIf on sibling fields → rebuild; scalar edits keep focus.
+    const rerender = field.type === 'toggle' || field.type === 'select';
+    const control = controlFor(field, cur, (v) => save(field.key, v, rerender));
     return fieldWrap(field, control, field.type === 'toggle');
   }
 

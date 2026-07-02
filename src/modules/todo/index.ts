@@ -1,14 +1,31 @@
 import './todo.css';
 import type { DashboardModule, Priority, TodoState } from '../../core/types';
 import { h } from '../../core/dom';
-import { addTodo, clearTodos, loadTodos, removeTodo, saveTodos, toggleTodo } from './store';
+import {
+  addTodo,
+  clearTodos,
+  loadTodos,
+  removeTodo,
+  saveTodos,
+  toggleTodo,
+  updateTodo,
+  type TodoPatch,
+} from './store';
 
 let host: HTMLElement;
 let state: TodoState = { items: [] };
 let dateEl: HTMLElement;
+let expandedId: string | null = null;
 let dateTick: ReturnType<typeof setInterval> | undefined;
 
 const PRIO_RANK: Record<Priority, number> = { high: 0, med: 1, low: 2 };
+
+// Prepend https:// when the user omits a scheme so the href resolves off-site.
+function normalizeLink(raw: string): string {
+  const v = raw.trim();
+  if (!v) return '';
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(v) ? v : `https://${v}`;
+}
 
 function dateLabel(): string {
   const now = new Date();
@@ -28,6 +45,10 @@ async function commit(next: TodoState, refocus = false): Promise<void> {
   await saveTodos(state);
   rebuild();
   if (refocus) host.querySelector<HTMLInputElement>('.todo-input')?.focus();
+}
+
+function update(id: string, patch: TodoPatch): void {
+  commit(updateTodo(state, id, patch));
 }
 
 function rebuild(): void {
@@ -70,21 +91,88 @@ function rebuild(): void {
 
   const list = h('div', { class: 'todo-list' });
   for (const t of sortedItems()) {
+    const expanded = expandedId === t.id;
     const check = h('input', {
       class: 'todo-check',
       type: 'checkbox',
       checked: t.done,
       onChange: () => commit(toggleTodo(state, t.id)),
     });
+    const toggleExpand = () => {
+      expandedId = expanded ? null : t.id;
+      rebuild();
+    };
+    const text = h('span', { class: `todo-text${t.done ? ' done' : ''}`, onClick: toggleExpand }, t.text);
+    const meta = h('span', { class: 'todo-meta' });
+    if (t.desc) meta.appendChild(h('span', { class: 'todo-badge', title: 'Has description' }, '≡'));
+    if (t.link) {
+      meta.appendChild(
+        h(
+          'a',
+          {
+            class: 'todo-badge todo-link',
+            href: t.link,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            title: t.link,
+            onClick: (e: Event) => e.stopPropagation(),
+          },
+          '🔗',
+        ),
+      );
+    }
     const row = h(
       'div',
-      { class: 'todo-item' },
+      { class: `todo-item${expanded ? ' expanded' : ''}` },
       check,
-      h('span', { class: `todo-text${t.done ? ' done' : ''}` }, t.text),
+      text,
+      meta,
       h('span', { class: `todo-dot ${t.priority}`, title: t.priority }),
       h('button', { class: 'todo-x', title: 'Remove', onClick: () => commit(removeTodo(state, t.id)) }, '×'),
     );
     list.appendChild(row);
+
+    if (expanded) {
+      const editText = h('input', {
+        class: 'todo-edit-text',
+        type: 'text',
+        value: t.text,
+        onChange: (e: Event) => {
+          const v = (e.target as HTMLInputElement).value.trim();
+          update(t.id, { text: v || t.text });
+        },
+      });
+      const descBox = h('textarea', {
+        class: 'todo-desc',
+        rows: 3,
+        placeholder: 'Description…',
+        value: t.desc ?? '',
+        onChange: (e: Event) => update(t.id, { desc: (e.target as HTMLTextAreaElement).value }),
+      });
+      const linkBox = h('input', {
+        class: 'todo-link-input',
+        type: 'text',
+        placeholder: 'https://…',
+        value: t.link ?? '',
+        onChange: (e: Event) => update(t.id, { link: normalizeLink((e.target as HTMLInputElement).value) }),
+      });
+      const detail = h(
+        'div',
+        { class: 'todo-detail' },
+        h('label', { class: 'todo-field-label' }, 'Title'),
+        editText,
+        h('label', { class: 'todo-field-label' }, 'Description'),
+        descBox,
+        h('label', { class: 'todo-field-label' }, 'Link'),
+        linkBox,
+      );
+      if (t.link) {
+        detail.appendChild(
+          h('a', { class: 'todo-open', href: t.link, target: '_blank', rel: 'noopener noreferrer' }, 'Open link ↗'),
+        );
+      }
+      list.appendChild(detail);
+    }
   }
 
   host.replaceChildren(h('div', { class: 'card todo' }, header, addRow, list));

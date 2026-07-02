@@ -18,7 +18,7 @@ body {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 320px 1fr;
   min-height: 100vh;
   padding: var(--s-6);
   gap: var(--s-6);

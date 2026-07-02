@@ -31,6 +31,11 @@ export function toggleTodo(state: TodoState, id: string): TodoState {
   return { items: state.items.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) };
 }
 
+export type TodoPatch = Partial<Pick<Todo, 'text' | 'desc' | 'link' | 'priority'>>;
+export function updateTodo(state: TodoState, id: string, patch: TodoPatch): TodoState {
+  return { items: state.items.map((t) => (t.id === id ? { ...t, ...patch } : t)) };
+}
+
 export function removeTodo(state: TodoState, id: string): TodoState {
   return { items: state.items.filter((t) => t.id !== id) };
 }

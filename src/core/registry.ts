@@ -11,7 +11,7 @@ export async function mountAll(ctx: ModuleContext, root: HTMLElement): Promise<v
   const background = h('div', { class: 'slot-background' });
   const main = h('div', { class: 'slot-main' });
   const sidebar = h('div', { class: 'slot-sidebar' });
-  const layout = h('div', { class: 'layout' }, main, sidebar);
+  const layout = h('div', { class: 'layout' }, sidebar, main);
   const corner = h('div', { class: 'slot-corner' });
   const overlay = h('div', { class: 'slot-overlay' });
   root.append(background, layout, corner, overlay);

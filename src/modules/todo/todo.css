@@ -59,10 +59,59 @@
   flex: 1;
   min-width: 0;
   word-break: break-word;
+  cursor: pointer;
 }
 .todo-text.done {
   text-decoration: line-through;
   color: var(--text-dim);
+}
+.todo-meta {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+.todo-badge {
+  font-size: var(--fs-xs);
+  line-height: 1;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+a.todo-badge:hover {
+  color: var(--primary);
+}
+
+.todo-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-3);
+  margin-bottom: var(--s-2);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+}
+.todo-field-label {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+.todo-detail .todo-edit-text,
+.todo-detail .todo-desc,
+.todo-detail .todo-link-input {
+  width: 100%;
+}
+.todo-desc {
+  resize: vertical;
+  font-family: var(--font-text);
+}
+.todo-open {
+  align-self: flex-start;
+  margin-top: var(--s-1);
+  font-size: var(--fs-sm);
+  color: var(--primary);
+  text-decoration: none;
+}
+.todo-open:hover {
+  text-decoration: underline;
 }
 .todo-dot {
   flex: none;

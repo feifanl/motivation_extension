@@ -19,6 +19,9 @@ body {
 .layout {
   position: relative;
   z-index: 1;
+  /* transparent to pointers so the pins wall behind stays draggable/clickable
+     through the column's empty gaps; real children opt back in below */
+  pointer-events: none;
   width: 100%;
   max-width: var(--content-w);
   margin: 0 auto;
@@ -62,6 +65,7 @@ body {
   max-height: calc(100vh - var(--s-6));
   overflow-y: auto;
   z-index: 3;
+  pointer-events: auto; /* re-enable: parent .layout is pointer-events:none */
   display: flex;
   flex-direction: column;
   gap: var(--s-4);

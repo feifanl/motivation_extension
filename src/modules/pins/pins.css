@@ -36,6 +36,16 @@
   object-fit: cover;
 }
 
+/* While rearranging pins, the content layer (life-clock, todo, quote, corner)
+   steps aside so every visible tile is draggable, not just the gutters. */
+:root.pins-editing .layout,
+:root.pins-editing .slot-sidebar,
+:root.pins-editing .slot-corner,
+:root.pins-editing .slot-main *,
+:root.pins-editing .mod-quote {
+  pointer-events: none !important;
+}
+
 /* ---- editor: drag to rearrange ---- */
 .pins-wall.editing {
   pointer-events: none; /* wall stays transparent; tiles opt back in below */

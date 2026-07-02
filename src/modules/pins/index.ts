@@ -203,6 +203,7 @@ async function render(): Promise<void> {
   editableBoardId =
     p.mode === 'board' ? (activeBoard ? activeBoard.id : null) : p.boards.length === 1 ? p.boards[0].id : null;
   if (!editableBoardId) editMode = false;
+  syncEditClass();
 
   const children: HTMLElement[] = [buildWallDom(loaded)];
   if (editableBoardId) children.push(editButton());
@@ -250,8 +251,15 @@ function editButton(): HTMLElement {
   );
 }
 
+function syncEditClass(): void {
+  // While editing, make the whole content layer pointer-transparent so tiles
+  // under the life-clock/todo columns are draggable everywhere they're visible.
+  document.documentElement.classList.toggle('pins-editing', editMode);
+}
+
 function toggleEdit(): void {
   editMode = !editMode && !!editableBoardId;
+  syncEditClass();
   rebuildWall();
   const btn = host.querySelector('.pins-edit-btn');
   if (btn) btn.replaceWith(editButton());

@@ -18,9 +18,21 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
   const corner = document.querySelector<HTMLElement>('.slot-corner');
   if (!corner) return;
 
+  let activeTab = 'general'; // which tab's section shows
+
   const gear = h('button', { class: 'settings-gear', title: 'Settings', 'aria-label': 'Settings' }, '⚙');
   const backdrop = h('div', { class: 'settings-backdrop' });
   const body = h('div', { class: 'settings-body' });
+  const tabsEl = h('div', { class: 'settings-tabs' });
+  const themeBtn = h('button', {
+    class: 'settings-theme',
+    title: 'Toggle theme',
+    'aria-label': 'Toggle theme',
+    onClick: () => {
+      const next = ctx.settings.theme === 'dark' ? 'light' : 'dark';
+      ctx.saveSettings({ theme: next }).then(syncThemeBtn);
+    },
+  });
   const panel = h(
     'div',
     { class: 'settings-panel' },
@@ -28,13 +40,20 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
       'div',
       { class: 'settings-head' },
       h('span', { class: 'settings-title' }, 'Settings'),
-      h('button', { class: 'settings-close', title: 'Close', onClick: close }, '✕'),
+      h('div', { class: 'settings-head-actions' }, themeBtn, h('button', { class: 'settings-close', title: 'Close', onClick: close }, '✕')),
     ),
+    tabsEl,
     body,
   );
 
   corner.appendChild(gear);
   document.body.append(backdrop, panel);
+
+  function syncThemeBtn(): void {
+    const dark = ctx.settings.theme === 'dark';
+    themeBtn.textContent = dark ? '☾' : '☀';
+    themeBtn.title = dark ? 'Switch to light' : 'Switch to dark';
+  }
 
   function open(): void {
     render();
@@ -66,32 +85,60 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
   }
 
   // ---- rendering ----
-  function render(): void {
-    body.replaceChildren();
+  // One tab per settings group; body shows only the active tab's section.
+  interface Tab {
+    id: string;
+    label: string;
+  }
 
-    // Global fields first.
-    const generalRows = [
-      renderField({
-        key: 'theme',
-        label: 'Theme',
-        type: 'select',
-        options: [
-          { value: 'dark', label: 'Dark' },
-          { value: 'light', label: 'Light' },
-        ],
-      }),
-    ].filter((el): el is HTMLElement => el !== null);
-    body.appendChild(section('General', generalRows));
-
-    // Per-module schemas.
+  function tabList(): Tab[] {
+    const tabs: Tab[] = [{ id: 'general', label: 'General' }];
     for (const mod of modules) {
-      if (!mod.settingsSchema.length) continue;
-      const rows = mod.settingsSchema
-        .filter((f) => !f.showIf || f.showIf(ctx.settings))
-        .map(renderField)
-        .filter((el): el is HTMLElement => el !== null);
-      if (rows.length) body.appendChild(section(prettify(mod.id), rows));
+      if (mod.settingsSchema.length) tabs.push({ id: mod.id, label: prettify(mod.id) });
     }
+    return tabs;
+  }
+
+  function render(): void {
+    syncThemeBtn();
+
+    const tabs = tabList();
+    if (!tabs.some((t) => t.id === activeTab)) activeTab = tabs[0].id;
+
+    tabsEl.replaceChildren(
+      ...tabs.map((t) =>
+        h(
+          'button',
+          {
+            class: 'settings-tab' + (t.id === activeTab ? ' active' : ''),
+            onClick: () => {
+              activeTab = t.id;
+              render();
+            },
+          },
+          t.label,
+        ),
+      ),
+    );
+
+    body.replaceChildren();
+    if (activeTab === 'general') {
+      body.appendChild(section('General', generalRows()));
+      return;
+    }
+    const mod = modules.find((m) => m.id === activeTab);
+    if (!mod) return;
+    const rows = mod.settingsSchema
+      .filter((f) => !f.showIf || f.showIf(ctx.settings))
+      .map(renderField)
+      .filter((el): el is HTMLElement => el !== null);
+    body.appendChild(section(prettify(mod.id), rows));
+  }
+
+  // General tab: theme lives in the header button, so this holds any other
+  // global fields (none yet) plus a hint.
+  function generalRows(): HTMLElement[] {
+    return [h('p', { class: 'field-help' }, 'Use the ☾ / ☀ button above to switch theme.')];
   }
 
   function section(title: string, rows: HTMLElement[]): HTMLElement {

@@ -1,9 +1,11 @@
-import { h } from '../../core/dom';
+import { h, clamp } from '../../core/dom';
 import { bus } from '../../core/events';
 import type { LifeView, Settings } from '../../core/types';
-import { progress, unitsForGrid, decadeStartYear, type Progress } from './math';
+import { progress, unitsForGrid, decadeStartYear, deathDate, type Progress } from './math';
 
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAY = 86_400_000;
+const WEEK = 7 * DAY;
 
 // Parse "YYYY-MM-DD" as a LOCAL date (avoids new Date(string) UTC shift).
 function parseBirthday(iso: string | null): Date | null {
@@ -94,32 +96,53 @@ function yearBlocks(now: Date): Block[] {
   return blocks;
 }
 
-// Decade → one block per year (that year's 12 months).
+// Decade → one block per CALENDAR year (that year's 12 months). Cells are
+// coloured by comparing each month to `now` directly, so the "now" cell always
+// sits under its true calendar-year label (no birthday-month offset drift).
 function decadeBlocks(now: Date, birthday: Date): Block[] {
   const startYear = decadeStartYear(birthday, now);
-  const { elapsed } = unitsForGrid('decade', now, birthday, 0);
+  const nowY = now.getFullYear();
+  const nowM = now.getMonth();
   const blocks: Block[] = [];
   for (let yr = 0; yr < 10; yr++) {
+    const year = startYear + yr;
     const cells: Cell[] = [];
-    for (let mo = 0; mo < 12; mo++) cells.push(cellState(yr * 12 + mo, elapsed));
-    blocks.push({ label: String(startYear + yr), cells, cols: 4 });
+    for (let mo = 0; mo < 12; mo++) {
+      cells.push(calCell(year, mo, nowY, nowM));
+    }
+    blocks.push({ label: String(year), cells, cols: 4 });
   }
   return blocks;
 }
 
-// Life → one block per year (that year's ~52 weeks).
+// Life → one block per CALENDAR year (that year's ~52 weeks). Cells are coloured
+// by comparing each week to `now`'s calendar year + week-of-year, so the "now"
+// week never drifts out from under its year label (fixed 52 wk/yr would drift).
 function lifeBlocks(now: Date, birthday: Date, expectancy: number): Block[] {
-  const { total, elapsed } = unitsForGrid('life', now, birthday, expectancy);
   const birthYear = birthday.getFullYear();
-  const numYears = Math.ceil(total / 52);
+  const deathYear = deathDate(birthday, expectancy).getFullYear();
+  const nowY = now.getFullYear();
+  const nowWeek = clamp(Math.floor((now.getTime() - startOfYearLocal(now).getTime()) / WEEK), 0, 51);
   const blocks: Block[] = [];
-  for (let yr = 0; yr < numYears; yr++) {
+  for (let year = birthYear; year <= deathYear; year++) {
     const cells: Cell[] = [];
-    const weeksThis = Math.min(52, total - yr * 52);
-    for (let w = 0; w < weeksThis; w++) cells.push(cellState(yr * 52 + w, elapsed));
-    blocks.push({ label: String(birthYear + yr), cells, cols: 7 });
+    for (let w = 0; w < 52; w++) {
+      cells.push(year < nowY ? 'past' : year > nowY ? 'future' : w < nowWeek ? 'past' : w === nowWeek ? 'now' : 'future');
+    }
+    blocks.push({ label: String(year), cells, cols: 7 });
   }
   return blocks;
+}
+
+function startOfYearLocal(now: Date): Date {
+  return new Date(now.getFullYear(), 0, 1);
+}
+
+// Month-in-year cell colour by direct calendar comparison to now.
+function calCell(year: number, mo: number, nowY: number, nowM: number): Cell {
+  if (year < nowY || (year === nowY && mo < nowM)) return 'past';
+  if (year === nowY && mo === nowM) return 'now';
+  return 'future';
 }
 
 // Month stays a weekday-aligned calendar (chunked by day).

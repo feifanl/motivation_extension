@@ -23,6 +23,17 @@ let unsub: (() => void) | undefined;
 let manualBoard = false;
 let renderToken = 0; // guards against stale async renders
 
+// ---- editor (drag-to-rearrange) state ----
+let editMode = false;
+let currentLoaded: Loaded[] = []; // live order shown in the wall
+let editableBoardId: string | null = null; // board whose pins the order writes back to
+let draggingIdx = -1;
+let ghost: HTMLElement | null = null;
+let dragOffX = 0;
+let dragOffY = 0;
+let dragMoved = false;
+let rebuildRaf = 0;
+
 function localDayNumber(): number {
   const offset = new Date().getTimezoneOffset() * 60_000;
   return Math.floor((Date.now() - offset) / DAY);
@@ -106,30 +117,45 @@ function layout(imgs: Loaded[], W: number, H: number): Row[] {
   return rows;
 }
 
-function tile(l: Loaded): HTMLElement {
+function tile(l: Loaded, idx: number): HTMLElement {
   const img = h('img', { class: 'pin-img', alt: '' }) as HTMLImageElement;
   img.src = l.pin.imageUrl; // cached from preload → instant
   const el = h(
     'a',
     { class: 'pin-item', href: l.pin.linkUrl || l.pin.imageUrl, target: '_blank', rel: 'noopener noreferrer' },
     img,
-  );
+  ) as HTMLAnchorElement;
+  el.dataset.index = String(idx);
   el.style.flex = `${l.aspect} 1 0`; // width proportional to aspect; row flexes to fill W
+  if (editMode) {
+    el.classList.add('pin-editable');
+    if (idx === draggingIdx) el.classList.add('pin-dragging');
+    el.addEventListener('pointerdown', (e) => startDrag(e as PointerEvent, idx));
+    el.addEventListener('click', (e) => e.preventDefault()); // no navigation while editing
+  }
   return el;
 }
 
 function buildWallDom(loaded: Loaded[]): HTMLElement {
   const wall = h('div', { class: 'pins-wall' });
+  if (editMode) wall.classList.add('editing');
   const W = window.innerWidth - GAP * 2;
   const Hh = window.innerHeight - GAP * 2;
   const rows = layout(loaded, W, Hh);
+  let idx = 0; // running index across rows == index into `loaded` (layout preserves order)
   for (const r of rows) {
     const rowEl = h('div', { class: 'pins-row' });
     rowEl.style.height = `${r.h}px`;
-    for (const it of r.items) rowEl.appendChild(tile(it));
+    for (const it of r.items) rowEl.appendChild(tile(it, idx++));
     wall.appendChild(rowEl);
   }
   return wall;
+}
+
+// Re-justify the wall in place from the current live order (no reload/preload).
+function rebuildWall(): void {
+  const old = host.querySelector('.pins-wall');
+  if (old) old.replaceWith(buildWallDom(currentLoaded));
 }
 
 async function render(): Promise<void> {
@@ -171,7 +197,15 @@ async function render(): Promise<void> {
     return;
   }
 
+  currentLoaded = loaded;
+  // Editing writes a flat order back to one board. Board mode → active board;
+  // all-pins mode is editable only when it collapses to a single board.
+  editableBoardId =
+    p.mode === 'board' ? (activeBoard ? activeBoard.id : null) : p.boards.length === 1 ? p.boards[0].id : null;
+  if (!editableBoardId) editMode = false;
+
   const children: HTMLElement[] = [buildWallDom(loaded)];
+  if (editableBoardId) children.push(editButton());
   if (p.mode === 'board' && p.boards.length > 1 && activeBoard) {
     children.push(
       h(
@@ -201,6 +235,127 @@ function switchBoard(dir: number): void {
   const next = ((curIdx + dir) % p.boards.length + p.boards.length) % p.boards.length;
   manualBoard = true;
   ctx.saveSettings({ pins: { activeBoardId: p.boards[next].id } });
+}
+
+// ---- editor: drag pins to rearrange, wall re-justifies live ----
+function editButton(): HTMLElement {
+  return h(
+    'button',
+    {
+      class: 'pins-edit-btn' + (editMode ? ' active' : ''),
+      title: editMode ? 'Done rearranging' : 'Rearrange pins',
+      onClick: toggleEdit,
+    },
+    editMode ? 'Done' : '✎',
+  );
+}
+
+function toggleEdit(): void {
+  editMode = !editMode && !!editableBoardId;
+  rebuildWall();
+  const btn = host.querySelector('.pins-edit-btn');
+  if (btn) btn.replaceWith(editButton());
+}
+
+function moveItem<T>(arr: T[], from: number, to: number): void {
+  const [x] = arr.splice(from, 1);
+  arr.splice(to, 0, x);
+}
+
+// Index of the tile under (x,y), else the nearest tile's index (so dragging
+// into a gap or past the edge still targets the closest slot); -1 if no tiles.
+function tileIndexAt(x: number, y: number): number {
+  const tiles = host.querySelectorAll<HTMLElement>('.pin-item');
+  let nearest = -1;
+  let best = Infinity;
+  for (const t of tiles) {
+    const r = t.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return Number(t.dataset.index);
+    const dx = x - (r.left + r.width / 2);
+    const dy = y - (r.top + r.height / 2);
+    const d = dx * dx + dy * dy;
+    if (d < best) {
+      best = d;
+      nearest = Number(t.dataset.index);
+    }
+  }
+  return nearest;
+}
+
+function positionGhost(x: number, y: number): void {
+  if (!ghost) return;
+  ghost.style.left = `${x - dragOffX}px`;
+  ghost.style.top = `${y - dragOffY}px`;
+}
+
+function startDrag(e: PointerEvent, idx: number): void {
+  if (!editMode || e.button !== 0) return;
+  e.preventDefault();
+  draggingIdx = idx;
+  dragMoved = false;
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  dragOffX = e.clientX - rect.left;
+  dragOffY = e.clientY - rect.top;
+
+  const gi = h('img', { alt: '' }) as HTMLImageElement;
+  gi.src = currentLoaded[idx].pin.imageUrl;
+  ghost = h('div', { class: 'pin-ghost' }, gi);
+  ghost.style.width = `${rect.width}px`;
+  ghost.style.height = `${rect.height}px`;
+  positionGhost(e.clientX, e.clientY);
+  document.body.appendChild(ghost);
+
+  rebuildWall(); // mark the source tile as dragging (dimmed placeholder)
+  window.addEventListener('pointermove', onDragMove);
+  window.addEventListener('pointerup', endDrag, { once: true });
+}
+
+function onDragMove(e: PointerEvent): void {
+  if (draggingIdx < 0) return;
+  positionGhost(e.clientX, e.clientY);
+  if (rebuildRaf) return; // coalesce hit-testing to one per frame
+  rebuildRaf = requestAnimationFrame(() => {
+    rebuildRaf = 0;
+    // The floating content layer sits above the wall, so hit-test the tile rects
+    // directly rather than via elementFromPoint.
+    const ti = tileIndexAt(e.clientX, e.clientY);
+    if (ti < 0 || ti === draggingIdx) return;
+    moveItem(currentLoaded, draggingIdx, ti);
+    draggingIdx = ti;
+    dragMoved = true;
+    rebuildWall(); // re-justify with the new order
+  });
+}
+
+function endDrag(): void {
+  window.removeEventListener('pointermove', onDragMove);
+  if (rebuildRaf) {
+    cancelAnimationFrame(rebuildRaf);
+    rebuildRaf = 0;
+  }
+  if (ghost) {
+    ghost.remove();
+    ghost = null;
+  }
+  const moved = dragMoved;
+  draggingIdx = -1;
+  dragMoved = false;
+  rebuildWall(); // clear dragging class
+  if (moved) persistOrder();
+}
+
+// Write the live order back to the editable board, preserving any pins that
+// weren't laid out (failed to load, or beyond MAX_TILES) at the tail.
+function persistOrder(): void {
+  const p = ctx.settings.pins;
+  const board = p.boards.find((b) => b.id === editableBoardId);
+  if (!board) return;
+  const ordered = currentLoaded.map((l) => l.pin);
+  const shown = new Set(ordered);
+  const rest = board.pins.filter((pin) => !shown.has(pin));
+  const newPins = [...ordered, ...rest];
+  const newBoards = p.boards.map((b) => (b.id === board.id ? { ...b, pins: newPins } : b));
+  ctx.saveSettings({ pins: { boards: newBoards } });
 }
 
 // ---- settings schema ----

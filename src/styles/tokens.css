@@ -12,6 +12,9 @@
   --fs-xs: 12px; --fs-sm: 14px; --fs-md: 16px; --fs-lg: 20px; --fs-xl: 28px; --fs-hero: 56px;
   /* motion */
   --t-fast: 120ms ease-out; --t-med: 180ms ease-out;
+  /* centered content column width; pins wall reserves this band in the middle */
+  --content-w: 560px;
+  --sidebar-w: 300px;
   /* color — semantic, theme-independent */
   --primary: #238636;
   --primary-hover: #2ea043;

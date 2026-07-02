@@ -5,7 +5,7 @@
 /* carousel stage: transform-driven vertical picker */
 .lc-stage {
   position: relative;
-  height: 78vh;
+  height: 62vh;
   overflow: hidden;
 }
 .lc-track {
@@ -25,8 +25,8 @@
 .lc-pane-inner {
   position: relative;
   width: 100%;
-  max-width: 680px;
-  padding: var(--s-6);
+  max-width: 520px;
+  padding: var(--s-5);
   border-radius: var(--r-lg);
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur)) saturate(130%);

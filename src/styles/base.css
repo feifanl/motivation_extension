@@ -14,18 +14,44 @@ body {
 
 .slot-background { position: fixed; inset: 0; z-index: 0; }
 
+/* Centered content column. Only occupies the middle band so the pins wall
+   behind it stays clickable in the left/right gutters. */
 .layout {
   position: relative;
   z-index: 1;
-  display: grid;
-  grid-template-columns: 320px 1fr;
+  width: 100%;
+  max-width: var(--content-w);
+  margin: 0 auto;
   min-height: 100vh;
-  padding: var(--s-6);
+  padding: var(--s-6) var(--s-4);
+  display: flex;
+  flex-direction: column;
   gap: var(--s-6);
-  align-items: start;
 }
 .slot-main { display: flex; flex-direction: column; gap: var(--s-6); }
-.slot-sidebar { display: flex; flex-direction: column; gap: var(--s-6); }
+/* Center column floats over the pins wall; let clicks fall through its gaps to
+   the pins, but keep its cards and controls interactive. */
+.slot-main { pointer-events: none; }
+.slot-main .card,
+.slot-main .lc-stage,
+.slot-main .lc-zoombar,
+.slot-main .lc-crumbs,
+.slot-main button,
+.slot-main a { pointer-events: auto; }
+/* Todo lives in a fixed left sidebar, floating above the pins wall. */
+.slot-sidebar {
+  position: fixed;
+  top: var(--s-5);
+  left: var(--s-5);
+  width: var(--sidebar-w);
+  max-height: calc(100vh - var(--s-6));
+  overflow-y: auto;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.slot-sidebar:empty { display: none; }
 
 .slot-corner {
   position: fixed;

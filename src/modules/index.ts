@@ -3,6 +3,7 @@ import { wallpaper } from './wallpaper';
 import { lifeclock } from './lifeclock';
 import { todo } from './todo';
 import { quote } from './quote';
+import { pins } from './pins';
 
 // The only file touched when adding a feature: import the module and append it.
-export const modules: DashboardModule[] = [wallpaper, lifeclock, todo, quote];
+export const modules: DashboardModule[] = [wallpaper, lifeclock, todo, quote, pins];

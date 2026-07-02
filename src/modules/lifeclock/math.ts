@@ -51,6 +51,11 @@ function decadeBounds(birthday: Date, now: Date): { start: Date; end: Date; inde
   return { start, end, index: idx };
 }
 
+// Calendar year the current life-decade began (e.g. birth 1999 + decade 2 → 2019).
+export function decadeStartYear(birthday: Date, now: Date): number {
+  return decadeBounds(birthday, now).start.getFullYear();
+}
+
 // ---------- humanizers ----------
 function humanDay(ms: number): string {
   const h = Math.floor(ms / 3_600_000);

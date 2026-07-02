@@ -1,7 +1,9 @@
-import { h, fmt } from '../../core/dom';
+import { h } from '../../core/dom';
 import { bus } from '../../core/events';
 import type { LifeView, Settings } from '../../core/types';
-import { progress, unitsForGrid, type Progress } from './math';
+import { progress, unitsForGrid, decadeStartYear, type Progress } from './math';
+
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // Parse "YYYY-MM-DD" as a LOCAL date (avoids new Date(string) UTC shift).
 function parseBirthday(iso: string | null): Date | null {
@@ -52,30 +54,75 @@ function bar(p: Progress, tip: Tooltip): HTMLElement {
   return wrap;
 }
 
-function cellLabel(view: LifeView, i: number, total: number): string {
-  if (view === 'month') return `day ${i + 1} of ${total}`;
-  if (view === 'year') return `day ${fmt(i + 1)} of ${fmt(total)}`;
-  if (view === 'decade') return `month ${i + 1} of 120`;
-  return `week ${fmt(i + 1)} of ${fmt(total)}`;
-}
-
-function state(i: number, elapsed: number): 'past' | 'now' | 'future' {
+type Cell = 'past' | 'now' | 'future';
+function cellState(i: number, elapsed: number): Cell {
   return i < elapsed - 1 ? 'past' : i === elapsed - 1 ? 'now' : 'future';
 }
 
-function grid(view: LifeView, total: number, elapsed: number, tip: Tooltip): HTMLElement {
-  const g = h('div', { class: `lc-grid lc-grid-${view}` });
-  const frag = document.createDocumentFragment();
-  for (let i = 0; i < total; i++) {
-    const cell = h('div', { class: `lc-cell ${state(i, elapsed)}`, 'data-idx': i });
-    frag.appendChild(cell);
-  }
-  g.appendChild(frag);
-  attachTip(g, view, total, tip);
-  return g;
+interface Block {
+  label: string;
+  cells: Cell[];
+  cols: number;
 }
 
-// Month as a real weekday-aligned calendar, chunked by day.
+// Renders labeled unit-blocks with gaps between them (waitbutwhy-style).
+function renderBlocks(view: LifeView, blocks: Block[]): HTMLElement {
+  const wrap = h('div', { class: `lc-blocks lc-blocks-${view}` });
+  for (const b of blocks) {
+    const g = h('div', { class: 'lc-block-grid' });
+    g.style.gridTemplateColumns = `repeat(${b.cols}, 1fr)`;
+    for (const c of b.cells) g.appendChild(h('div', { class: `lc-chunk ${c}` }));
+    wrap.appendChild(h('div', { class: 'lc-block' }, h('div', { class: 'lc-block-label' }, b.label), g));
+  }
+  return wrap;
+}
+
+// Year → one block per month (that month's days).
+function yearBlocks(now: Date): Block[] {
+  const y = now.getFullYear();
+  const tm = now.getMonth();
+  const td = now.getDate();
+  const blocks: Block[] = [];
+  for (let m = 0; m < 12; m++) {
+    const dim = new Date(y, m + 1, 0).getDate();
+    const cells: Cell[] = [];
+    for (let d = 1; d <= dim; d++) {
+      cells.push(m < tm || (m === tm && d < td) ? 'past' : m === tm && d === td ? 'now' : 'future');
+    }
+    blocks.push({ label: MONTH_ABBR[m], cells, cols: 7 });
+  }
+  return blocks;
+}
+
+// Decade → one block per year (that year's 12 months).
+function decadeBlocks(now: Date, birthday: Date): Block[] {
+  const startYear = decadeStartYear(birthday, now);
+  const { elapsed } = unitsForGrid('decade', now, birthday, 0);
+  const blocks: Block[] = [];
+  for (let yr = 0; yr < 10; yr++) {
+    const cells: Cell[] = [];
+    for (let mo = 0; mo < 12; mo++) cells.push(cellState(yr * 12 + mo, elapsed));
+    blocks.push({ label: String(startYear + yr), cells, cols: 4 });
+  }
+  return blocks;
+}
+
+// Life → one block per year (that year's ~52 weeks).
+function lifeBlocks(now: Date, birthday: Date, expectancy: number): Block[] {
+  const { total, elapsed } = unitsForGrid('life', now, birthday, expectancy);
+  const birthYear = birthday.getFullYear();
+  const numYears = Math.ceil(total / 52);
+  const blocks: Block[] = [];
+  for (let yr = 0; yr < numYears; yr++) {
+    const cells: Cell[] = [];
+    const weeksThis = Math.min(52, total - yr * 52);
+    for (let w = 0; w < weeksThis; w++) cells.push(cellState(yr * 52 + w, elapsed));
+    blocks.push({ label: String(birthYear + yr), cells, cols: 7 });
+  }
+  return blocks;
+}
+
+// Month stays a weekday-aligned calendar (chunked by day).
 function monthCalendar(now: Date, total: number, elapsed: number, tip: Tooltip): HTMLElement {
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
   const offset = (first.getDay() + 6) % 7; // Monday-start leading blanks
@@ -86,20 +133,16 @@ function monthCalendar(now: Date, total: number, elapsed: number, tip: Tooltip):
   for (let i = 0; i < offset; i++) cal.appendChild(h('div', { class: 'lc-cal-blank' }));
   for (let d = 1; d <= total; d++) {
     cal.appendChild(
-      h('div', { class: `lc-cal-day ${state(d - 1, elapsed)}`, 'data-idx': d - 1 }, String(d)),
+      h('div', { class: `lc-cal-day ${cellState(d - 1, elapsed)}`, 'data-idx': d - 1 }, String(d)),
     );
   }
-  attachTip(cal, 'month', total, tip);
-  return cal;
-}
-
-function attachTip(el: HTMLElement, view: LifeView, total: number, tip: Tooltip): void {
-  el.addEventListener('mousemove', (e) => {
+  cal.addEventListener('mousemove', (e) => {
     const cell = (e.target as HTMLElement).closest<HTMLElement>('[data-idx]');
     if (!cell) return tip.hide();
-    tip.show(e.clientX, e.clientY, cellLabel(view, Number(cell.dataset.idx), total));
+    tip.show(e.clientX, e.clientY, `day ${Number(cell.dataset.idx) + 1} of ${total}`);
   });
-  el.addEventListener('mouseleave', () => tip.hide());
+  cal.addEventListener('mouseleave', () => tip.hide());
+  return cal;
 }
 
 function noBirthday(): HTMLElement {
@@ -137,14 +180,11 @@ export function renderView(
     container.appendChild(bar(p, tip));
     container.appendChild(monthCalendar(now, total, elapsed, tip));
   } else if (view === 'year') {
-    const { total, elapsed } = unitsForGrid('year', now, birthday, expectancy);
     container.appendChild(bar(p, tip));
-    container.appendChild(grid('year', total, elapsed, tip));
+    container.appendChild(renderBlocks('year', yearBlocks(now)));
   } else if (view === 'decade') {
-    const { total, elapsed } = unitsForGrid('decade', now, birthday, expectancy);
-    container.appendChild(grid('decade', total, elapsed, tip));
+    container.appendChild(renderBlocks('decade', decadeBlocks(now, birthday!)));
   } else {
-    const { total, elapsed } = unitsForGrid('life', now, birthday, expectancy);
-    container.appendChild(grid('life', total, elapsed, tip));
+    container.appendChild(renderBlocks('life', lifeBlocks(now, birthday!, expectancy)));
   }
 }

@@ -7,11 +7,12 @@ import { renderView } from './views';
 let ctx: ModuleContext;
 let stage: HTMLElement;
 let track: HTMLElement;
-let crumbsEl: HTMLElement;
+let zoombar: HTMLElement;
 let paneEls: HTMLElement[] = [];
 let viewEls: HTMLElement[] = [];
 let activeIndex = 0;
 let tick: ReturnType<typeof setInterval> | undefined;
+let moveT: ReturnType<typeof setTimeout> | undefined;
 let onKey: ((e: KeyboardEvent) => void) | undefined;
 let onResize: (() => void) | undefined;
 let unsub: (() => void) | undefined;
@@ -30,32 +31,32 @@ function isTyping(target: EventTarget | null): boolean {
 function renderPanes(): void {
   const now = new Date();
   VIEW_ORDER.forEach((v, i) => renderView(v, viewEls[i], ctx.settings, now));
+  placeZoombar();
 }
 
-// Slide the track so the active pane sits at the stage's vertical center.
+// Slide the track so the active pane sits at the stage's vertical center,
+// and dock the ±controls inside the active pane's box.
 function applyTransform(): void {
   const pane = paneEls[activeIndex];
   const y = stage.clientHeight / 2 - (pane.offsetTop + pane.offsetHeight / 2);
   track.style.transform = `translateY(${y}px)`;
   paneEls.forEach((p, i) => p.classList.toggle('active', i === activeIndex));
-  buildCrumbs();
+  placeZoombar();
 }
 
-function buildCrumbs(): void {
-  crumbsEl.replaceChildren();
-  VIEW_ORDER.forEach((v, i) => {
-    if (i) crumbsEl.appendChild(h('span', { class: 'lc-sep' }, '·'));
-    crumbsEl.appendChild(
-      h('span', { class: `lc-crumb${i === activeIndex ? ' active' : ''}`, onClick: () => goTo(i) }, v),
-    );
-  });
+function placeZoombar(): void {
+  const inner = paneEls[activeIndex]?.firstElementChild;
+  if (inner && zoombar.parentElement !== inner) inner.appendChild(zoombar);
 }
 
 function goTo(i: number): void {
   const n = clamp(i, 0, VIEW_ORDER.length - 1);
   if (n === activeIndex) return;
   activeIndex = n;
+  stage.classList.add('moving'); // neighbors peek only while sliding
   applyTransform();
+  clearTimeout(moveT);
+  moveT = setTimeout(() => stage.classList.remove('moving'), 220);
 }
 
 // dir > 0 = zoom out (toward life); dir < 0 = zoom in (toward day).
@@ -122,13 +123,12 @@ export const lifeclock: DashboardModule = {
       track.appendChild(pane);
     });
 
-    stage = h('div', { class: 'lc-stage' }, track);
-    crumbsEl = h('div', { class: 'lc-crumbs' });
     const zoomOut = h('button', { class: 'lc-zoom', title: 'Zoom out', onClick: () => step(1) }, '−');
     const zoomIn = h('button', { class: 'lc-zoom', title: 'Zoom in', onClick: () => step(-1) }, '+');
-    const header = h('div', { class: 'lc-header' }, crumbsEl, h('div', { class: 'lc-zoombar' }, zoomOut, zoomIn));
+    zoombar = h('div', { class: 'lc-zoombar' }, zoomOut, zoomIn);
 
-    el.appendChild(h('div', { class: 'lc-root' }, header, stage));
+    stage = h('div', { class: 'lc-stage' }, track);
+    el.appendChild(h('div', { class: 'lc-root' }, stage));
 
     // discrete "picker" wheel: one view per gesture
     stage.addEventListener(
@@ -158,6 +158,7 @@ export const lifeclock: DashboardModule = {
 
   destroy() {
     if (tick) clearInterval(tick);
+    if (moveT) clearTimeout(moveT);
     if (onKey) window.removeEventListener('keydown', onKey);
     if (onResize) window.removeEventListener('resize', onResize);
     if (unsub) unsub();

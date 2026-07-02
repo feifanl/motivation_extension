@@ -2,63 +2,10 @@
   position: relative;
 }
 
-/* header: view labels kept intentionally faint */
-.lc-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-4);
-  margin-bottom: var(--s-3);
-  padding: 0 var(--s-2);
-}
-.lc-crumbs {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  flex-wrap: wrap;
-  font-size: var(--fs-sm);
-}
-.lc-crumb {
-  cursor: pointer;
-  color: var(--text-dim);
-  text-transform: capitalize;
-  opacity: 0.4;
-  transition: opacity var(--t-fast), color var(--t-fast);
-}
-.lc-crumb:hover {
-  opacity: 0.8;
-}
-.lc-crumb.active {
-  opacity: 1;
-  color: var(--text);
-  font-weight: 600;
-}
-.lc-sep {
-  color: var(--text-dim);
-  opacity: 0.25;
-}
-.lc-zoombar {
-  display: flex;
-  gap: var(--s-2);
-}
-.lc-zoom {
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  font-size: var(--fs-lg);
-  line-height: 1;
-  background: var(--glass-bg);
-  border-color: var(--glass-border);
-  opacity: 0.6;
-}
-.lc-zoom:hover {
-  opacity: 1;
-}
-
 /* carousel stage: transform-driven vertical picker */
 .lc-stage {
   position: relative;
-  height: 74vh;
+  height: 78vh;
   overflow: hidden;
 }
 .lc-track {
@@ -76,23 +23,52 @@
 
 /* liquid-glass tile */
 .lc-pane-inner {
+  position: relative;
   width: 100%;
   max-width: 680px;
-  padding: var(--s-7) var(--s-6);
+  padding: var(--s-6);
   border-radius: var(--r-lg);
   background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(130%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(130%);
   border: 1px solid var(--glass-border);
   box-shadow: inset 0 1px 0 var(--glass-hi), var(--elev-2);
-  opacity: 0.35;
-  transform: scale(0.9);
+  /* hidden when settled; only the active tile shows */
+  opacity: 0;
+  transform: scale(0.94);
   transition: opacity var(--t-med), transform var(--t-med), background var(--t-med);
 }
 .lc-pane.active .lc-pane-inner {
   opacity: 1;
   transform: scale(1);
   background: var(--glass-bg-strong);
+}
+/* neighbors peek only while the carousel is sliding */
+.lc-stage.moving .lc-pane:not(.active) .lc-pane-inner {
+  opacity: 0.4;
+}
+
+/* zoom controls docked inside the active tile */
+.lc-zoombar {
+  position: absolute;
+  top: var(--s-4);
+  right: var(--s-4);
+  z-index: 3;
+  display: flex;
+  gap: var(--s-2);
+}
+.lc-zoom {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-size: var(--fs-lg);
+  line-height: 1;
+  background: var(--glass-bg-strong);
+  border-color: var(--glass-border);
+  opacity: 0.75;
+}
+.lc-zoom:hover {
+  opacity: 1;
 }
 
 .lc-view {
@@ -131,10 +107,10 @@
   max-width: 420px;
   height: 12px;
   border-radius: 999px;
-  background: var(--surface-2);
+  background: var(--chunk-future);
   overflow: hidden;
   cursor: help;
-  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.25);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.2);
 }
 .lc-bar-fill {
   height: 100%;
@@ -144,39 +120,62 @@
   transition: width var(--t-med);
 }
 
-/* square-chunk grids */
-.lc-grid {
-  margin-top: var(--s-5);
-  display: grid;
-  gap: 2px;
+/* labeled unit-blocks with gaps (year→months, decade/life→years) */
+.lc-blocks {
+  margin: var(--s-5) auto 0;
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: var(--s-5) var(--s-4);
+  max-width: 620px;
 }
-.lc-grid-year {
-  grid-template-columns: repeat(auto-fill, 9px);
-  grid-auto-rows: 9px;
-}
-.lc-grid-decade {
-  grid-template-columns: repeat(auto-fill, 13px);
-  grid-auto-rows: 13px;
-}
-.lc-grid-life {
-  grid-template-columns: repeat(auto-fill, 5px);
-  grid-auto-rows: 5px;
+.lc-blocks-life {
+  gap: var(--s-2);
+  max-width: 600px;
   contain: content;
 }
-.lc-cell {
-  width: 100%;
-  height: 100%;
-  border-radius: 1px;
-  background: var(--surface-2);
+.lc-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
 }
-.lc-cell.past {
+.lc-block-label {
+  text-align: center;
+  font-size: var(--fs-xs);
+  line-height: 1;
+  color: var(--text-dim);
+}
+.lc-block-grid {
+  display: grid;
+  gap: 2px;
+}
+.lc-blocks-life .lc-block-grid {
+  gap: 1px;
+}
+.lc-chunk {
+  border-radius: 2px;
+  background: var(--chunk-future);
+}
+/* fixed chunk sizes: big enough to read for year/decade, tiny for life */
+.lc-blocks-year .lc-chunk {
+  width: 11px;
+  height: 11px;
+}
+.lc-blocks-decade .lc-chunk {
+  width: 14px;
+  height: 14px;
+}
+.lc-blocks-life .lc-chunk {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+}
+.lc-chunk.past {
   background: var(--primary);
 }
-.lc-cell.now {
+.lc-chunk.now {
   background: var(--danger);
   outline: 1px solid var(--danger);
-  outline-offset: 1px;
 }
 
 /* month calendar */
@@ -203,7 +202,7 @@
   justify-content: center;
   font-size: var(--fs-xs);
   border-radius: var(--r-sm);
-  background: var(--surface-2);
+  background: var(--chunk-future);
   color: var(--text-dim);
 }
 .lc-cal-day.past {

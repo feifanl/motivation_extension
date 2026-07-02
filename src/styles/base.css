@@ -97,6 +97,25 @@ body {
   padding: var(--s-5);
 }
 
+/* Collapse/expand motion for the hideable panels (quote, todo, life clock). */
+.collapsing {
+  opacity: 0 !important;
+  transform: scale(0.94) !important;
+  transition: opacity var(--t-med), transform var(--t-med) !important;
+  pointer-events: none;
+}
+@keyframes ui-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+.ui-enter {
+  /* backwards (not both): forwards-fill would pin final styles and block the
+     later .collapsing transition */
+  animation: ui-pop var(--t-med) backwards;
+}
+
 button {
   font-family: var(--font-text);
   font-size: var(--fs-sm);

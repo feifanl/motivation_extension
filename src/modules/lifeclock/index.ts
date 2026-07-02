@@ -1,10 +1,11 @@
 import './lifeclock.css';
 import type { DashboardModule, ModuleContext, SettingsField } from '../../core/types';
-import { h, clamp } from '../../core/dom';
+import { h, clamp, animateOut } from '../../core/dom';
 import { VIEW_ORDER } from './math';
 import { renderView } from './views';
 
 let ctx: ModuleContext;
+let moduleHost: HTMLElement;
 let stage: HTMLElement;
 let track: HTMLElement;
 let zoombar: HTMLElement;
@@ -17,6 +18,7 @@ let onKey: ((e: KeyboardEvent) => void) | undefined;
 let onResize: (() => void) | undefined;
 let unsub: (() => void) | undefined;
 let wheelLock = 0;
+let lastMin = false;
 
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -69,6 +71,105 @@ function step(dir: number): void {
   goTo(activeIndex + dir);
 }
 
+// Small inline-SVG icon builder (crisp, no emoji).
+function svgIcon(cls: string, inner: string): HTMLElement {
+  const span = document.createElement('span');
+  span.className = cls;
+  span.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+  return span;
+}
+// Minimize: a bar sitting low (window-minimize convention).
+function minimizeIcon(): HTMLElement {
+  return svgIcon('lc-icon', '<line x1="6" y1="17" x2="18" y2="17"/>');
+}
+// Magnifying glass with + / − inside for zoom in / out.
+function zoomIcon(dir: 'in' | 'out'): HTMLElement {
+  const plus = dir === 'in' ? '<line x1="10" y1="7.5" x2="10" y2="12.5"/>' : '';
+  return svgIcon(
+    'lc-icon',
+    `<circle cx="10" cy="10" r="6.5"/><line x1="15" y1="15" x2="20.5" y2="20.5"/><line x1="7.5" y1="10" x2="12.5" y2="10"/>${plus}`,
+  );
+}
+
+// Thin, elegant clock glyph (SVG, not an emoji).
+function clockIcon(cls: string): HTMLElement {
+  const span = document.createElement('span');
+  span.className = cls;
+  span.innerHTML =
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/></svg>';
+  return span;
+}
+
+// Minimized → a compact clock-icon button; else the full carousel.
+function drawClock(): void {
+  moduleHost.replaceChildren();
+  if (ctx.settings.ui.clockMinimized) {
+    moduleHost.appendChild(
+      h(
+        'button',
+        {
+          class: 'lc-pill ui-enter',
+          title: 'Expand life clock',
+          'aria-label': 'Expand life clock',
+          onClick: () => ctx.saveSettings({ ui: { clockMinimized: false } }),
+        },
+        clockIcon('lc-pill-icon'),
+      ),
+    );
+    return;
+  }
+  buildStage();
+}
+
+function buildStage(): void {
+  paneEls = [];
+  viewEls = [];
+  track = h('div', { class: 'lc-track' });
+
+  VIEW_ORDER.forEach(() => {
+    const view = h('div', { class: 'lc-view' });
+    const inner = h('div', { class: 'lc-pane-inner' }, view);
+    const pane = h('div', { class: 'lc-pane' }, inner);
+    viewEls.push(view);
+    paneEls.push(pane);
+    track.appendChild(pane);
+  });
+
+  const zoomOut = h('button', { class: 'lc-zoom', title: 'Zoom out', 'aria-label': 'Zoom out', onClick: () => step(1) }, zoomIcon('out'));
+  const zoomIn = h('button', { class: 'lc-zoom', title: 'Zoom in', 'aria-label': 'Zoom in', onClick: () => step(-1) }, zoomIcon('in'));
+  const minBtn = h(
+    'button',
+    { class: 'lc-zoom lc-min', title: 'Minimize', 'aria-label': 'Minimize', onClick: () => ctx.saveSettings({ ui: { clockMinimized: true } }) },
+    minimizeIcon(),
+  );
+  zoombar = h('div', { class: 'lc-zoombar' }, minBtn, zoomOut, zoomIn);
+
+  stage = h('div', { class: 'lc-stage' }, track);
+  moduleHost.appendChild(h('div', { class: 'lc-root ui-enter' }, stage));
+
+  // discrete "picker" wheel: one view per gesture
+  stage.addEventListener(
+    'wheel',
+    (e) => {
+      e.preventDefault();
+      const t = Date.now();
+      if (t - wheelLock < 400) return;
+      wheelLock = t;
+      step(e.deltaY < 0 ? -1 : 1);
+    },
+    { passive: false },
+  );
+
+  renderPanes();
+  // Position on the default view without the slide animation, then enable it.
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      applyTransform();
+      if (!reduced) track.classList.add('animated');
+    }),
+  );
+}
+
 const schema: SettingsField[] = [
   { key: 'lifeclock.birthday', label: 'Birthday', type: 'date' },
   { key: 'lifeclock.lifeExpectancyYears', label: 'Life expectancy (years)', type: 'number', min: 1, max: 120 },
@@ -102,63 +203,35 @@ export const lifeclock: DashboardModule = {
     };
     window.addEventListener('keydown', onKey);
 
+    lastMin = c.settings.ui.clockMinimized;
     unsub = c.bus.on('settings-changed', () => {
-      if (viewEls.length) {
+      if (c.settings.ui.clockMinimized !== lastMin) {
+        lastMin = c.settings.ui.clockMinimized;
+        const cur = moduleHost.querySelector<HTMLElement>('.lc-root, .lc-pill');
+        if (cur) animateOut(cur, drawClock); // fade current out, then swap
+        else drawClock();
+        return;
+      }
+      if (!ctx.settings.ui.clockMinimized && viewEls.length) {
         renderPanes();
         applyTransform(); // pane heights may change (e.g. birthday set)
       }
     });
 
     tick = setInterval(() => {
-      if (viewEls.length) renderPanes();
+      if (!ctx.settings.ui.clockMinimized && viewEls.length) renderPanes();
     }, 30_000);
   },
 
   render(el) {
-    paneEls = [];
-    viewEls = [];
-    track = h('div', { class: 'lc-track' });
-
-    VIEW_ORDER.forEach(() => {
-      const view = h('div', { class: 'lc-view' });
-      const inner = h('div', { class: 'lc-pane-inner' }, view);
-      const pane = h('div', { class: 'lc-pane' }, inner);
-      viewEls.push(view);
-      paneEls.push(pane);
-      track.appendChild(pane);
-    });
-
-    const zoomOut = h('button', { class: 'lc-zoom', title: 'Zoom out', onClick: () => step(1) }, '−');
-    const zoomIn = h('button', { class: 'lc-zoom', title: 'Zoom in', onClick: () => step(-1) }, '+');
-    zoombar = h('div', { class: 'lc-zoombar' }, zoomOut, zoomIn);
-
-    stage = h('div', { class: 'lc-stage' }, track);
-    el.appendChild(h('div', { class: 'lc-root' }, stage));
-
-    // discrete "picker" wheel: one view per gesture
-    stage.addEventListener(
-      'wheel',
-      (e) => {
-        e.preventDefault();
-        const t = Date.now();
-        if (t - wheelLock < 400) return;
-        wheelLock = t;
-        step(e.deltaY < 0 ? -1 : 1);
-      },
-      { passive: false },
-    );
-
-    onResize = () => applyTransform();
-    window.addEventListener('resize', onResize);
-
-    renderPanes();
-    // Position on the default view without the slide animation, then enable it.
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        applyTransform();
-        if (!reduced) track.classList.add('animated');
-      }),
-    );
+    moduleHost = el;
+    if (!onResize) {
+      onResize = () => {
+        if (!ctx.settings.ui.clockMinimized) applyTransform();
+      };
+      window.addEventListener('resize', onResize);
+    }
+    drawClock();
   },
 
   destroy() {

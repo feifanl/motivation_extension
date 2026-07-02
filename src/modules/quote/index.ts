@@ -1,6 +1,6 @@
 import './quote.css';
 import type { DashboardModule, ModuleContext, Quote, QuoteCategory } from '../../core/types';
-import { h } from '../../core/dom';
+import { h, animateOut } from '../../core/dom';
 import { quoteToday, quoteRandom } from './zenquotes';
 import bundled from './quotes.json';
 
@@ -12,6 +12,9 @@ let host: HTMLElement;
 let current: Quote | null = null; // quote on screen
 let nextBuf: Quote | null = null; // one quote prefetched so cycling is instant
 let prefetching = false;
+let todayQuote: Quote | null = null; // cached day quote → instant re-open
+let todayTried = false; // day fetch attempted (null result = failed → fallback)
+let animateNext = false; // play enter animation on the next card build (open, not cycle)
 
 // Local-day index so the bundled pick is stable within the user's calendar day.
 function localDayNumber(): number {
@@ -83,6 +86,10 @@ function skeleton(): HTMLElement {
 function renderQuote(q: Quote): void {
   current = q;
   const card = h('div', { class: 'card quote' });
+  if (animateNext) {
+    card.classList.add('ui-enter');
+    animateNext = false;
+  }
   card.appendChild(
     h('button', { class: 'quote-next', title: 'New quote', 'aria-label': 'New quote', onClick: cycle }, '↻'),
   );
@@ -90,7 +97,39 @@ function renderQuote(q: Quote): void {
   const foot = h('div', { class: 'quote-foot' }, h('span', { class: 'quote-author' }, `— ${q.author}`));
   if (q.category) foot.appendChild(h('span', { class: 'quote-cat' }, q.category));
   card.appendChild(foot);
-  host.replaceChildren(card);
+  paint(card);
+}
+
+// Bottom pull-tab: closed → tiny handle; open → chevron to hide.
+function quoteTab(): HTMLElement {
+  const open = ctx.settings.ui.quoteOpen;
+  return h(
+    'button',
+    {
+      class: 'quote-tab' + (open ? ' open' : ''),
+      title: open ? 'Hide quote' : 'Show quote',
+      'aria-label': open ? 'Hide quote' : 'Show quote',
+      onClick: toggleOpen,
+    },
+    chevron(open ? 'down' : 'up'),
+  );
+}
+
+// Inline-SVG chevron so the tab arrow is pixel-centered (glyph metrics aren't).
+function chevron(dir: 'up' | 'down'): HTMLElement {
+  const path = dir === 'up' ? 'M5 14l7-7 7 7' : 'M5 10l7 7 7-7';
+  const span = document.createElement('span');
+  span.className = 'quote-chevron';
+  span.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg>`;
+  return span;
+}
+function toggleOpen(): void {
+  ctx.saveSettings({ ui: { quoteOpen: !ctx.settings.ui.quoteOpen } });
+}
+// Keep the tab present; `inner` is the card (or null when closed / empty).
+function paint(inner: HTMLElement | null): void {
+  const kids = inner ? [inner, quoteTab()] : [quoteTab()];
+  host.replaceChildren(...kids);
 }
 
 // Bundled deterministic daily pick, filtered by the enabled categories.
@@ -98,7 +137,7 @@ function renderFallback(): void {
   const cats = ctx.settings.quote.categories;
   const pool = QUOTES.filter((q) => q.category && cats.includes(q.category as QuoteCategory));
   if (!pool.length) {
-    host.replaceChildren(); // nothing selected → hide the card
+    paint(null); // nothing selected → tab only
     return;
   }
   renderQuote(pool[localDayNumber() % pool.length]);
@@ -118,23 +157,65 @@ export const quote: DashboardModule = {
 
   init(c) {
     ctx = c;
+    // Re-render only when quote visibility toggles (open/enabled), not on every
+    // unrelated settings save.
+    let lastSig = `${c.settings.quote.enabled}|${c.settings.ui.quoteOpen}`;
+    let lastOpen = c.settings.ui.quoteOpen;
+    c.bus.on('settings-changed', () => {
+      const sig = `${c.settings.quote.enabled}|${c.settings.ui.quoteOpen}`;
+      if (sig === lastSig || !host) return;
+      lastSig = sig;
+      const wasOpen = lastOpen;
+      lastOpen = c.settings.ui.quoteOpen;
+      if (wasOpen && !c.settings.ui.quoteOpen) {
+        const card = host.querySelector<HTMLElement>('.quote.card');
+        if (card) {
+          animateOut(card, renderShell); // fade the card out, then show just the tab
+          return;
+        }
+      }
+      if (!wasOpen && c.settings.ui.quoteOpen) animateNext = true;
+      renderShell();
+    });
   },
 
   render(el) {
     host = el;
-    current = null;
-    nextBuf = null;
-    if (!ctx.settings.quote.enabled) return; // skip render entirely
-
-    if (ctx.settings.quote.api) {
-      host.replaceChildren(skeleton()); // never block paint
-      quoteToday().then((q) => {
-        if (q) renderQuote(q);
-        else renderFallback(); // API failed → bundled daily pick
-      });
-    } else {
-      renderFallback();
-    }
-    prefetch(); // warm the buffer so the first cycle is instant
+    warmToday(); // fetch the day quote up front so opening is instant
+    renderShell();
   },
 };
+
+// Fetch (once) and cache the day quote in the background, even while closed, so
+// re-opening the tab never waits on the network.
+function warmToday(): void {
+  if (todayTried || !ctx.settings.quote.enabled || !ctx.settings.quote.api) return;
+  todayTried = true;
+  quoteToday().then((q) => {
+    todayQuote = q;
+    if (host && ctx.settings.ui.quoteOpen) renderShell(); // fill skeleton if open
+  });
+  prefetch(); // warm the cycle buffer too
+}
+
+// Draws the dock: enabled? → tab (+ card when open). Uses the cached day quote.
+function renderShell(): void {
+  if (!ctx.settings.quote.enabled) {
+    host.replaceChildren();
+    return;
+  }
+  if (!ctx.settings.ui.quoteOpen) {
+    paint(null); // tab only
+    return;
+  }
+  if (ctx.settings.quote.api) {
+    if (todayQuote) renderQuote(todayQuote); // cached → instant
+    else if (todayTried) renderFallback(); // fetch already failed → bundled
+    else {
+      paint(skeleton()); // fetch still in flight; warmToday() will refill
+      warmToday();
+    }
+  } else {
+    renderFallback();
+  }
+}

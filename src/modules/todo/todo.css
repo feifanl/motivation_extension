@@ -31,10 +31,38 @@
 .todo-sync.offline {
   background: var(--text-dim);
 }
+.todo-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
 .todo-clear {
   font-size: var(--fs-xs);
   color: var(--danger);
   padding: var(--s-1) var(--s-2);
+}
+.todo-hide {
+  width: 24px;
+  height: 28px;
+  padding: 0;
+  font-size: var(--fs-lg);
+  line-height: 1;
+  border-radius: var(--r-sm);
+}
+/* collapsed sidebar → a small arrow rectangle to bring tasks back */
+.todo-handle {
+  align-self: flex-start;
+  width: 24px;
+  height: 44px;
+  padding: 0;
+  font-size: var(--fs-lg);
+  line-height: 1;
+  border-radius: var(--r-sm);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--elev-1);
 }
 
 .todo-add {

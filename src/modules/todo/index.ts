@@ -1,6 +1,6 @@
 import './todo.css';
 import type { DashboardModule, ModuleContext, Priority, TodoState } from '../../core/types';
-import { h } from '../../core/dom';
+import { h, animateOut } from '../../core/dom';
 import {
   addTodo,
   clearTodos,
@@ -104,6 +104,18 @@ function update(id: string, patch: TodoPatch): void {
 }
 
 function rebuild(): void {
+  // Collapsed → just a handle to bring the sidebar back.
+  if (ctx.settings.ui.todoHidden) {
+    host.replaceChildren(
+      h(
+        'button',
+        { class: 'todo-handle ui-enter', title: 'Show tasks', 'aria-label': 'Show tasks', onClick: () => ctx.saveSettings({ ui: { todoHidden: false } }) },
+        '›',
+      ),
+    );
+    return;
+  }
+
   dateEl = h('div', { class: 'todo-date' }, dateLabel());
   const left = h('div', { class: 'todo-head-left' }, dateEl);
   if (syncStatus !== 'off') {
@@ -114,12 +126,20 @@ function rebuild(): void {
       }),
     );
   }
-  const header = h('div', { class: 'todo-head' }, left);
+  const headActions = h('div', { class: 'todo-head-actions' });
   if (state.items.length) {
-    header.appendChild(
+    headActions.appendChild(
       h('button', { class: 'todo-clear', onClick: () => commit(clearTodos()) }, 'Clear'),
     );
   }
+  headActions.appendChild(
+    h(
+      'button',
+      { class: 'todo-hide', title: 'Hide tasks', 'aria-label': 'Hide tasks', onClick: () => ctx.saveSettings({ ui: { todoHidden: true } }) },
+      '‹',
+    ),
+  );
+  const header = h('div', { class: 'todo-head' }, left, headActions);
 
   const input = h('input', {
     class: 'todo-input',
@@ -265,11 +285,18 @@ function rebuild(): void {
     }
   }
 
-  host.replaceChildren(h('div', { class: 'card todo' }, header, addRow, list));
+  const cardEl = h('div', { class: 'card todo' }, header, addRow, list);
+  if (animateShow) {
+    cardEl.classList.add('ui-enter');
+    animateShow = false;
+  }
+  host.replaceChildren(cardEl);
 }
 
 let unsub: (() => void) | undefined;
 let lastCfgSig = '';
+let lastHidden = false;
+let animateShow = false; // play enter animation when the card returns from hidden
 
 export const todo: DashboardModule = {
   id: 'todo',
@@ -303,8 +330,21 @@ export const todo: DashboardModule = {
     dateTick = setInterval(() => {
       if (dateEl) dateEl.textContent = dateLabel();
     }, 60_000);
-    // Re-sync only when the Trello config actually changes.
+    lastHidden = c.settings.ui.todoHidden;
+    // Re-sync when Trello config changes; rebuild when the hide toggle flips.
     unsub = c.bus.on('settings-changed', () => {
+      if (c.settings.ui.todoHidden !== lastHidden) {
+        const nowHidden = c.settings.ui.todoHidden;
+        lastHidden = nowHidden;
+        if (host) {
+          const card = host.querySelector<HTMLElement>('.card.todo');
+          if (nowHidden && card) animateOut(card, rebuild); // fade card, then show handle
+          else {
+            if (!nowHidden) animateShow = true; // returning → animate card in
+            rebuild();
+          }
+        }
+      }
       const sig = JSON.stringify(trelloCfg());
       if (sig !== lastCfgSig) {
         lastCfgSig = sig;

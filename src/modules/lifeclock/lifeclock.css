@@ -2,6 +2,31 @@
   position: relative;
 }
 
+/* minimized state: a compact clock-icon rectangle that restores the clock */
+.lc-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: var(--text);
+  border-radius: var(--r-md);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur)) saturate(130%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(130%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--elev-2);
+}
+.lc-pill:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.lc-pill-icon {
+  display: flex;
+}
+
 /* carousel stage: transform-driven vertical picker */
 .lc-stage {
   position: relative;
@@ -70,6 +95,14 @@
 }
 .lc-zoom:hover {
   opacity: 1;
+}
+.lc-zoom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lc-icon {
+  display: flex;
 }
 
 .lc-view {

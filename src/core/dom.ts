@@ -67,3 +67,31 @@ export function todayISO(): string {
 export function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n));
 }
+
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Play a brief collapse animation on `el`, then run `done` (which swaps the DOM
+// to the collapsed form). Honors prefers-reduced-motion by skipping straight to
+// `done`. A timeout guards against a missed transitionend.
+export function animateOut(el: HTMLElement, done: () => void): void {
+  if (reducedMotion) {
+    done();
+    return;
+  }
+  let called = false;
+  const finish = () => {
+    if (called) return;
+    called = true;
+    el.removeEventListener('transitionend', onEnd);
+    done();
+  };
+  // Only our own transition on el counts; ignore transitionend bubbling from
+  // descendants (which would end the animation early).
+  const onEnd = (e: TransitionEvent) => {
+    if (e.target === el) finish();
+  };
+  el.addEventListener('transitionend', onEnd);
+  setTimeout(finish, 260);
+  // next frame so the transition has a start state to animate from
+  requestAnimationFrame(() => el.classList.add('collapsing'));
+}

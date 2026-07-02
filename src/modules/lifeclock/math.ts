@@ -156,6 +156,12 @@ export function unitsForGrid(
   birthday: Date | null,
   expectancy: number,
 ): { total: number; elapsed: number } {
+  if (view === 'month') {
+    const s = startOfMonth(now);
+    const total = Math.round((startOfNextMonth(now).getTime() - s.getTime()) / DAY);
+    const elapsed = now.getDate(); // day-of-month (1-indexed, includes today)
+    return { total, elapsed: clamp(elapsed, 1, total) };
+  }
   if (view === 'year') {
     const s = startOfYear(now);
     const total = Math.round((startOfNextYear(now).getTime() - s.getTime()) / DAY);

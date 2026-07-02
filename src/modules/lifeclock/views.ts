@@ -12,10 +12,11 @@ function parseBirthday(iso: string | null): Date | null {
 }
 
 function hero(p: Progress): HTMLElement {
+  // Counts UP: the big number is elapsed (% done), not remaining.
   return h(
     'div',
     { class: 'lc-hero' },
-    h('div', { class: 'lc-remaining' }, `${Math.round(100 - p.pct)}%`),
+    h('div', { class: 'lc-remaining' }, `${Math.round(p.pct)}%`),
     h('div', { class: 'lc-caption' }, p.name),
     h('div', { class: 'lc-sub' }, p.sublabel),
   );
@@ -52,27 +53,53 @@ function bar(p: Progress, tip: Tooltip): HTMLElement {
 }
 
 function cellLabel(view: LifeView, i: number, total: number): string {
+  if (view === 'month') return `day ${i + 1} of ${total}`;
   if (view === 'year') return `day ${fmt(i + 1)} of ${fmt(total)}`;
   if (view === 'decade') return `month ${i + 1} of 120`;
   return `week ${fmt(i + 1)} of ${fmt(total)}`;
+}
+
+function state(i: number, elapsed: number): 'past' | 'now' | 'future' {
+  return i < elapsed - 1 ? 'past' : i === elapsed - 1 ? 'now' : 'future';
 }
 
 function grid(view: LifeView, total: number, elapsed: number, tip: Tooltip): HTMLElement {
   const g = h('div', { class: `lc-grid lc-grid-${view}` });
   const frag = document.createDocumentFragment();
   for (let i = 0; i < total; i++) {
-    const state = i < elapsed - 1 ? 'past' : i === elapsed - 1 ? 'now' : 'future';
-    const cell = h('div', { class: `lc-cell ${state}`, 'data-idx': i });
+    const cell = h('div', { class: `lc-cell ${state(i, elapsed)}`, 'data-idx': i });
     frag.appendChild(cell);
   }
   g.appendChild(frag);
-  g.addEventListener('mousemove', (e) => {
+  attachTip(g, view, total, tip);
+  return g;
+}
+
+// Month as a real weekday-aligned calendar, chunked by day.
+function monthCalendar(now: Date, total: number, elapsed: number, tip: Tooltip): HTMLElement {
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const offset = (first.getDay() + 6) % 7; // Monday-start leading blanks
+  const cal = h('div', { class: 'lc-cal' });
+  for (const dow of ['M', 'T', 'W', 'T', 'F', 'S', 'S']) {
+    cal.appendChild(h('div', { class: 'lc-cal-dow' }, dow));
+  }
+  for (let i = 0; i < offset; i++) cal.appendChild(h('div', { class: 'lc-cal-blank' }));
+  for (let d = 1; d <= total; d++) {
+    cal.appendChild(
+      h('div', { class: `lc-cal-day ${state(d - 1, elapsed)}`, 'data-idx': d - 1 }, String(d)),
+    );
+  }
+  attachTip(cal, 'month', total, tip);
+  return cal;
+}
+
+function attachTip(el: HTMLElement, view: LifeView, total: number, tip: Tooltip): void {
+  el.addEventListener('mousemove', (e) => {
     const cell = (e.target as HTMLElement).closest<HTMLElement>('[data-idx]');
     if (!cell) return tip.hide();
     tip.show(e.clientX, e.clientY, cellLabel(view, Number(cell.dataset.idx), total));
   });
-  g.addEventListener('mouseleave', () => tip.hide());
-  return g;
+  el.addEventListener('mouseleave', () => tip.hide());
 }
 
 function noBirthday(): HTMLElement {
@@ -103,8 +130,12 @@ export function renderView(
   container.appendChild(hero(p));
 
   const tip = makeTooltip(container);
-  if (view === 'day' || view === 'week' || view === 'month') {
+  if (view === 'day' || view === 'week') {
     container.appendChild(bar(p, tip));
+  } else if (view === 'month') {
+    const { total, elapsed } = unitsForGrid('month', now, birthday, expectancy);
+    container.appendChild(bar(p, tip));
+    container.appendChild(monthCalendar(now, total, elapsed, tip));
   } else if (view === 'year') {
     const { total, elapsed } = unitsForGrid('year', now, birthday, expectancy);
     container.appendChild(bar(p, tip));

@@ -1,13 +1,15 @@
-.lifeclock {
+.lc-root {
   position: relative;
 }
 
+/* header: view labels kept intentionally faint */
 .lc-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-4);
-  margin-bottom: var(--s-5);
+  margin-bottom: var(--s-3);
+  padding: 0 var(--s-2);
 }
 .lc-crumbs {
   display: flex;
@@ -20,44 +22,89 @@
   cursor: pointer;
   color: var(--text-dim);
   text-transform: capitalize;
-  transition: color var(--t-fast);
+  opacity: 0.4;
+  transition: opacity var(--t-fast), color var(--t-fast);
 }
 .lc-crumb:hover {
-  color: var(--text);
+  opacity: 0.8;
 }
 .lc-crumb.active {
-  color: var(--primary);
+  opacity: 1;
+  color: var(--text);
   font-weight: 600;
 }
 .lc-sep {
   color: var(--text-dim);
-  opacity: 0.5;
+  opacity: 0.25;
 }
 .lc-zoombar {
   display: flex;
   gap: var(--s-2);
 }
 .lc-zoom {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   font-size: var(--fs-lg);
   line-height: 1;
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  opacity: 0.6;
+}
+.lc-zoom:hover {
+  opacity: 1;
+}
+
+/* carousel stage: transform-driven vertical picker */
+.lc-stage {
+  position: relative;
+  height: 74vh;
+  overflow: hidden;
+}
+.lc-track {
+  position: relative;
+  will-change: transform;
+}
+.lc-track.animated {
+  transition: transform var(--t-med);
+}
+.lc-pane {
+  display: flex;
+  justify-content: center;
+  padding: var(--s-4) 0;
+}
+
+/* liquid-glass tile */
+.lc-pane-inner {
+  width: 100%;
+  max-width: 680px;
+  padding: var(--s-7) var(--s-6);
+  border-radius: var(--r-lg);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-hi), var(--elev-2);
+  opacity: 0.35;
+  transform: scale(0.9);
+  transition: opacity var(--t-med), transform var(--t-med), background var(--t-med);
+}
+.lc-pane.active .lc-pane-inner {
+  opacity: 1;
+  transform: scale(1);
+  background: var(--glass-bg-strong);
 }
 
 .lc-view {
   position: relative;
-  min-height: 160px;
-  transition: opacity var(--t-med), transform var(--t-med);
-}
-.lc-view.leaving {
-  opacity: 0;
-  transform: scale(0.98);
 }
 
+/* hero: centered % counting up */
 .lc-hero {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   gap: var(--s-1);
 }
 .lc-remaining {
@@ -76,38 +123,45 @@
   color: var(--text-dim);
 }
 
+/* progress bar */
 .lc-bar {
   position: relative;
-  margin-top: var(--s-5);
-  height: 10px;
-  border-radius: var(--r-sm);
+  margin: var(--s-5) auto 0;
+  width: 100%;
+  max-width: 420px;
+  height: 12px;
+  border-radius: 999px;
   background: var(--surface-2);
   overflow: hidden;
   cursor: help;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.25);
 }
 .lc-bar-fill {
   height: 100%;
-  border-radius: var(--r-sm);
+  border-radius: 999px;
   background: var(--primary);
+  box-shadow: 0 0 12px rgb(35 134 54 / 0.7);
   transition: width var(--t-med);
 }
 
+/* square-chunk grids */
 .lc-grid {
   margin-top: var(--s-5);
   display: grid;
   gap: 2px;
+  justify-content: center;
 }
 .lc-grid-year {
-  grid-template-columns: repeat(auto-fill, 10px);
-  grid-auto-rows: 10px;
+  grid-template-columns: repeat(auto-fill, 9px);
+  grid-auto-rows: 9px;
 }
 .lc-grid-decade {
-  grid-template-columns: repeat(auto-fill, 14px);
-  grid-auto-rows: 14px;
+  grid-template-columns: repeat(auto-fill, 13px);
+  grid-auto-rows: 13px;
 }
 .lc-grid-life {
-  grid-template-columns: repeat(auto-fill, 6px);
-  grid-auto-rows: 6px;
+  grid-template-columns: repeat(auto-fill, 5px);
+  grid-auto-rows: 5px;
   contain: content;
 }
 .lc-cell {
@@ -117,15 +171,53 @@
   background: var(--surface-2);
 }
 .lc-cell.past {
-  background: var(--text-dim);
-  opacity: 0.3;
+  background: var(--primary);
 }
 .lc-cell.now {
-  background: var(--primary);
-  outline: 1px solid var(--primary);
+  background: var(--danger);
+  outline: 1px solid var(--danger);
   outline-offset: 1px;
 }
 
+/* month calendar */
+.lc-cal {
+  margin: var(--s-5) auto 0;
+  width: 100%;
+  max-width: 360px;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--s-2);
+}
+.lc-cal-dow {
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+.lc-cal-blank {
+  aspect-ratio: 1;
+}
+.lc-cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-xs);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--text-dim);
+}
+.lc-cal-day.past {
+  background: var(--primary);
+  color: #fff;
+}
+.lc-cal-day.now {
+  background: var(--danger);
+  color: #fff;
+  outline: 2px solid var(--danger);
+  outline-offset: 1px;
+}
+
+/* tooltip */
 .lc-tip {
   position: absolute;
   z-index: 2;
@@ -147,7 +239,7 @@
 .lc-empty {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--s-3);
   padding: var(--s-5) 0;
   color: var(--text-dim);

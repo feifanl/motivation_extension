@@ -1,42 +1,44 @@
 import './lifeclock.css';
-import type { DashboardModule, LifeView, ModuleContext, SettingsField } from '../../core/types';
+import type { DashboardModule, ModuleContext, SettingsField } from '../../core/types';
 import { h, clamp } from '../../core/dom';
 import { VIEW_ORDER } from './math';
 import { renderView } from './views';
 
 let ctx: ModuleContext;
-let currentView: LifeView;
-let viewEl: HTMLElement;
+let stage: HTMLElement;
+let track: HTMLElement;
 let crumbsEl: HTMLElement;
+let paneEls: HTMLElement[] = [];
+let viewEls: HTMLElement[] = [];
+let activeIndex = 0;
 let tick: ReturnType<typeof setInterval> | undefined;
 let onKey: ((e: KeyboardEvent) => void) | undefined;
+let onResize: (() => void) | undefined;
 let unsub: (() => void) | undefined;
-let wheelLast = 0;
+let wheelLock = 0;
 
-const CROSSFADE_MS = 180;
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
-
 function isTyping(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT');
 }
 
-function renderCurrent(fade: boolean): void {
-  const doRender = () => renderView(currentView, viewEl, ctx.settings, new Date());
-  if (fade) {
-    viewEl.classList.add('leaving');
-    setTimeout(() => {
-      doRender();
-      viewEl.classList.remove('leaving');
-      buildCrumbs();
-    }, CROSSFADE_MS);
-  } else {
-    doRender();
-    buildCrumbs();
-  }
+function renderPanes(): void {
+  const now = new Date();
+  VIEW_ORDER.forEach((v, i) => renderView(v, viewEls[i], ctx.settings, now));
+}
+
+// Slide the track so the active pane sits at the stage's vertical center.
+function applyTransform(): void {
+  const pane = paneEls[activeIndex];
+  const y = stage.clientHeight / 2 - (pane.offsetTop + pane.offsetHeight / 2);
+  track.style.transform = `translateY(${y}px)`;
+  paneEls.forEach((p, i) => p.classList.toggle('active', i === activeIndex));
+  buildCrumbs();
 }
 
 function buildCrumbs(): void {
@@ -44,25 +46,21 @@ function buildCrumbs(): void {
   VIEW_ORDER.forEach((v, i) => {
     if (i) crumbsEl.appendChild(h('span', { class: 'lc-sep' }, '·'));
     crumbsEl.appendChild(
-      h('span', { class: `lc-crumb${v === currentView ? ' active' : ''}`, onClick: () => setView(v) }, v),
+      h('span', { class: `lc-crumb${i === activeIndex ? ' active' : ''}`, onClick: () => goTo(i) }, v),
     );
   });
 }
 
-function setView(v: LifeView): void {
-  if (v === currentView) {
-    renderCurrent(false);
-    return;
-  }
-  currentView = v;
-  renderCurrent(true);
+function goTo(i: number): void {
+  const n = clamp(i, 0, VIEW_ORDER.length - 1);
+  if (n === activeIndex) return;
+  activeIndex = n;
+  applyTransform();
 }
 
 // dir > 0 = zoom out (toward life); dir < 0 = zoom in (toward day).
-function zoom(dir: number): void {
-  const i = VIEW_ORDER.indexOf(currentView);
-  const n = clamp(i + dir, 0, VIEW_ORDER.length - 1);
-  if (n !== i) setView(VIEW_ORDER[n]);
+function step(dir: number): void {
+  goTo(activeIndex + dir);
 }
 
 const schema: SettingsField[] = [
@@ -84,65 +82,84 @@ export const lifeclock: DashboardModule = {
 
   init(c) {
     ctx = c;
-    currentView = c.settings.lifeclock.defaultView;
+    activeIndex = Math.max(0, VIEW_ORDER.indexOf(c.settings.lifeclock.defaultView));
 
     onKey = (e) => {
       if (isTyping(e.target)) return;
       if (e.key === 'ArrowUp' || e.key === '+' || e.key === '=') {
-        zoom(-1);
+        step(-1);
         e.preventDefault();
       } else if (e.key === 'ArrowDown' || e.key === '-' || e.key === '_') {
-        zoom(1);
+        step(1);
         e.preventDefault();
       }
     };
     window.addEventListener('keydown', onKey);
 
     unsub = c.bus.on('settings-changed', () => {
-      if (viewEl) renderCurrent(false);
+      if (viewEls.length) {
+        renderPanes();
+        applyTransform(); // pane heights may change (e.g. birthday set)
+      }
     });
 
     tick = setInterval(() => {
-      if (viewEl) renderCurrent(false);
+      if (viewEls.length) renderPanes();
     }, 30_000);
   },
 
   render(el) {
-    viewEl = h('div', { class: 'lc-view' });
+    paneEls = [];
+    viewEls = [];
+    track = h('div', { class: 'lc-track' });
+
+    VIEW_ORDER.forEach(() => {
+      const view = h('div', { class: 'lc-view' });
+      const inner = h('div', { class: 'lc-pane-inner' }, view);
+      const pane = h('div', { class: 'lc-pane' }, inner);
+      viewEls.push(view);
+      paneEls.push(pane);
+      track.appendChild(pane);
+    });
+
+    stage = h('div', { class: 'lc-stage' }, track);
     crumbsEl = h('div', { class: 'lc-crumbs' });
-    const zoomOut = h('button', { class: 'lc-zoom', title: 'Zoom out', onClick: () => zoom(1) }, '−');
-    const zoomIn = h('button', { class: 'lc-zoom', title: 'Zoom in', onClick: () => zoom(-1) }, '+');
+    const zoomOut = h('button', { class: 'lc-zoom', title: 'Zoom out', onClick: () => step(1) }, '−');
+    const zoomIn = h('button', { class: 'lc-zoom', title: 'Zoom in', onClick: () => step(-1) }, '+');
+    const header = h('div', { class: 'lc-header' }, crumbsEl, h('div', { class: 'lc-zoombar' }, zoomOut, zoomIn));
 
-    const header = h(
-      'div',
-      { class: 'lc-header' },
-      crumbsEl,
-      h('div', { class: 'lc-zoombar' }, zoomOut, zoomIn),
-    );
+    el.appendChild(h('div', { class: 'lc-root' }, header, stage));
 
-    const card = h('div', { class: 'card lifeclock' }, header, viewEl);
-    card.addEventListener(
+    // discrete "picker" wheel: one view per gesture
+    stage.addEventListener(
       'wheel',
       (e) => {
-        const t = Date.now();
-        if (t - wheelLast < 250) {
-          e.preventDefault();
-          return;
-        }
-        wheelLast = t;
-        zoom(e.deltaY < 0 ? -1 : 1);
         e.preventDefault();
+        const t = Date.now();
+        if (t - wheelLock < 400) return;
+        wheelLock = t;
+        step(e.deltaY < 0 ? -1 : 1);
       },
       { passive: false },
     );
 
-    el.appendChild(card);
-    renderCurrent(false);
+    onResize = () => applyTransform();
+    window.addEventListener('resize', onResize);
+
+    renderPanes();
+    // Position on the default view without the slide animation, then enable it.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        applyTransform();
+        if (!reduced) track.classList.add('animated');
+      }),
+    );
   },
 
   destroy() {
     if (tick) clearInterval(tick);
     if (onKey) window.removeEventListener('keydown', onKey);
+    if (onResize) window.removeEventListener('resize', onResize);
     if (unsub) unsub();
   },
 };

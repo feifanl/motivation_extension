@@ -1,0 +1,73 @@
+.quote {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.quote-text {
+  margin: 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-lg);
+  line-height: 1.45;
+}
+
+.quote-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.quote-author {
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
+.quote-cat {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  padding: 2px var(--s-2);
+}
+
+.quote-sync {
+  position: absolute;
+  top: var(--s-3);
+  right: var(--s-3);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.quote-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.quote-skeleton span {
+  height: 14px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  animation: quote-pulse 1.2s ease-in-out infinite;
+}
+.quote-skeleton span:nth-child(1) {
+  width: 90%;
+}
+.quote-skeleton span:nth-child(2) {
+  width: 80%;
+}
+.quote-skeleton span:nth-child(3) {
+  width: 40%;
+}
+@keyframes quote-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quote-skeleton span { animation: none; }
+}

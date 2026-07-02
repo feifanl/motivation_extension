@@ -1,5 +1,6 @@
 import type { DashboardModule } from '../core/types';
 import { wallpaper } from './wallpaper';
+import { lifeclock } from './lifeclock';
 
 // The only file touched when adding a feature: import the module and append it.
-export const modules: DashboardModule[] = [wallpaper];
+export const modules: DashboardModule[] = [wallpaper, lifeclock];

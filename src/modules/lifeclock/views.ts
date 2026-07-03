@@ -173,7 +173,7 @@ function noBirthday(): HTMLElement {
     'div',
     { class: 'lc-empty' },
     h('p', {}, 'Set your birthday to see this view.'),
-    h('button', { class: 'primary', onClick: () => bus.emit('open-settings') }, 'Set birthday'),
+    h('button', { class: 'primary', onClick: () => bus.emit('open-settings', 'lifeclock') }, 'Set birthday'),
   );
 }
 

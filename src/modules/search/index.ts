@@ -12,6 +12,7 @@ const ENGINES: Record<SearchEngine, { label: string; url: string }> = {
 let ctx: ModuleContext;
 let host: HTMLElement;
 let unsub: (() => void) | undefined;
+let focusedOnce = false; // autofocus only on first mount, never on re-render
 
 function submit(query: string): void {
   const q = query.trim();
@@ -37,9 +38,13 @@ function render(): void {
     if (e.key === 'Enter') submit(input.value);
   });
   host.replaceChildren(h('div', { class: 'search-bar' }, input));
-  // Focus the bar so a fresh tab is type-ready; module keybinds already ignore
-  // events while a text field is focused.
-  requestAnimationFrame(() => input.focus());
+  // Focus once on first mount so a fresh tab is type-ready. NOT on every render:
+  // settings-changed re-renders would otherwise steal focus from whatever the
+  // user is typing elsewhere (e.g. a settings field).
+  if (!focusedOnce) {
+    focusedOnce = true;
+    requestAnimationFrame(() => input.focus());
+  }
 }
 
 const schema: SettingsField[] = [

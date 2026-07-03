@@ -181,7 +181,9 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
     glassBtn.title = on ? 'Liquid glass: on' : 'Liquid glass: off';
   }
 
-  function open(): void {
+  function open(tab?: string): void {
+    // A module can request its own tab (e.g. life clock's "Set birthday").
+    if (tab && tabList().some((t) => t.id === tab)) activeTab = tab;
     render();
     backdrop.classList.add('open');
     panel.classList.add('open');
@@ -191,12 +193,12 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
     panel.classList.remove('open');
   }
 
-  gear.addEventListener('click', open);
+  gear.addEventListener('click', () => open());
   backdrop.addEventListener('click', close);
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && panel.classList.contains('open')) close();
   });
-  ctx.bus.on('open-settings', open);
+  ctx.bus.on('open-settings', (payload) => open(typeof payload === 'string' ? payload : undefined));
 
   // ---- persistence ----
   // rerender=false keeps the focused input alive (scalar text/date/number edits);

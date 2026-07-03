@@ -18,7 +18,7 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
   const corner = document.querySelector<HTMLElement>('.slot-corner');
   if (!corner) return;
 
-  let activeTab = 'general'; // which tab's section shows
+  let activeTab = ''; // which tab's section shows; render() defaults to the first tab
 
   const gear = h('button', { class: 'settings-gear', title: 'Settings', 'aria-label': 'Settings' }, '⚙');
   const backdrop = h('div', { class: 'settings-backdrop' });
@@ -33,6 +33,30 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
       ctx.saveSettings({ theme: next }).then(syncThemeBtn);
     },
   });
+  const glassBtn = h('button', {
+    class: 'settings-glass',
+    title: 'Toggle liquid glass',
+    'aria-label': 'Toggle liquid glass',
+    onClick: () => {
+      ctx.saveSettings({ ui: { glass: !ctx.settings.ui.glass } }).then(syncGlassBtn);
+    },
+  });
+  // A diagonally rain-streaked glass pane, its bottom edge submerged below a
+  // wavy water surface.
+  glassBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="4.5" y="2" width="15" height="16" rx="1.5"/>
+    <g stroke-width="1" opacity=".85">
+      <!-- top-left pair (same angle); the second (right) streak is broken -->
+      <line x1="6.6" y1="3.4" x2="7.88" y2="6.6"/>
+      <line x1="8.3" y1="3.4" x2="8.9" y2="4.9"/>
+      <line x1="9.1" y1="5.4" x2="9.58" y2="6.6"/>
+      <!-- bottom-right pair; the first (higher) streak is broken -->
+      <line x1="14.6" y1="8.8" x2="15.2" y2="10.3"/>
+      <line x1="15.4" y1="10.8" x2="15.88" y2="12"/>
+      <line x1="16.3" y1="9" x2="17.58" y2="12.2"/>
+    </g>
+    <path d="M2 15q2-1.6 4 0t4 0 4 0 4 0 4 0"/>
+  </svg>`;
   const panel = h(
     'div',
     { class: 'settings-panel' },
@@ -40,7 +64,7 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
       'div',
       { class: 'settings-head' },
       h('span', { class: 'settings-title' }, 'Settings'),
-      h('div', { class: 'settings-head-actions' }, themeBtn, h('button', { class: 'settings-close', title: 'Close', onClick: close }, '✕')),
+      h('div', { class: 'settings-head-actions' }, glassBtn, themeBtn, h('button', { class: 'settings-close', title: 'Close', onClick: close }, '✕')),
     ),
     tabsEl,
     body,
@@ -53,6 +77,12 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
     const dark = ctx.settings.theme === 'dark';
     themeBtn.textContent = dark ? '☾' : '☀';
     themeBtn.title = dark ? 'Switch to light' : 'Switch to dark';
+  }
+
+  function syncGlassBtn(): void {
+    const on = ctx.settings.ui.glass;
+    glassBtn.classList.toggle('active', on);
+    glassBtn.title = on ? 'Liquid glass: on' : 'Liquid glass: off';
   }
 
   function open(): void {
@@ -92,7 +122,7 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
   }
 
   function tabList(): Tab[] {
-    const tabs: Tab[] = [{ id: 'general', label: 'General' }];
+    const tabs: Tab[] = [];
     for (const mod of modules) {
       if (mod.settingsSchema.length) tabs.push({ id: mod.id, label: prettify(mod.id) });
     }
@@ -101,9 +131,10 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
 
   function render(): void {
     syncThemeBtn();
+    syncGlassBtn();
 
     const tabs = tabList();
-    if (!tabs.some((t) => t.id === activeTab)) activeTab = tabs[0].id;
+    if (tabs.length && !tabs.some((t) => t.id === activeTab)) activeTab = tabs[0].id;
 
     tabsEl.replaceChildren(
       ...tabs.map((t) =>
@@ -122,10 +153,6 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
     );
 
     body.replaceChildren();
-    if (activeTab === 'general') {
-      body.appendChild(section('General', generalRows()));
-      return;
-    }
     const mod = modules.find((m) => m.id === activeTab);
     if (!mod) return;
     const rows = mod.settingsSchema
@@ -133,12 +160,6 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
       .map(renderField)
       .filter((el): el is HTMLElement => el !== null);
     body.appendChild(section(prettify(mod.id), rows));
-  }
-
-  // General tab: theme lives in the header button, so this holds any other
-  // global fields (none yet) plus a hint.
-  function generalRows(): HTMLElement[] {
-    return [h('p', { class: 'field-help' }, 'Use the ☾ / ☀ button above to switch theme.')];
   }
 
   function section(title: string, rows: HTMLElement[]): HTMLElement {

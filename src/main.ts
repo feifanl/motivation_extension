@@ -14,9 +14,14 @@ function applyTheme(theme: Settings['theme']): void {
   document.documentElement.dataset.theme = theme;
 }
 
+function applyGlass(on: boolean): void {
+  document.documentElement.dataset.glass = on ? 'on' : 'off';
+}
+
 async function boot(): Promise<void> {
   const settings = await loadSettings();
   applyTheme(settings.theme);
+  applyGlass(settings.ui.glass);
 
   const ctx: ModuleContext = {
     settings,
@@ -29,6 +34,7 @@ async function boot(): Promise<void> {
   bus.on('settings-changed', (s) => {
     ctx.settings = s as Settings;
     applyTheme(ctx.settings.theme);
+    applyGlass(ctx.settings.ui.glass);
   });
 
   const app = document.getElementById('app')!;

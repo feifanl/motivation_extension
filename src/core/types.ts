@@ -103,6 +103,7 @@ export interface Settings {
     quoteOpen: boolean; // quote card pulled up from its bottom tab
     todoHidden: boolean; // todo sidebar collapsed to a handle
     clockMinimized: boolean; // life clock collapsed to a compact pill
+    glass: boolean; // liquid-glass surfaces (false = flat opaque)
   };
 }
 
@@ -123,7 +124,7 @@ export const DEFAULT_SETTINGS: Settings = {
     allIndex: 0,
   },
   notes: { enabled: true },
-  ui: { quoteOpen: false, todoHidden: false, clockMinimized: false },
+  ui: { quoteOpen: false, todoHidden: false, clockMinimized: false, glass: true },
 };
 
 // ---------- Todo (root storage key "todos") ----------

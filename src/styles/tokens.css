@@ -26,12 +26,12 @@
 :root[data-theme='dark'] {
   --bg: #0d1117; --surface: #161b22; --surface-2: #21262d;
   --border: #30363d; --text: #e6edf3; --text-dim: #8b949e;
-  /* liquid glass — frosted, opaque enough to read text over any wallpaper */
-  --glass-bg: rgb(22 27 34 / .55);
-  --glass-bg-strong: rgb(22 27 34 / .72);
-  --glass-border: rgb(255 255 255 / .14);
-  --glass-hi: rgb(255 255 255 / .18);
-  --glass-blur: 14px;
+  /* liquid glass — more transparent; heavier blur keeps text legible */
+  --glass-bg: rgb(22 27 34 / .40);
+  --glass-bg-strong: rgb(22 27 34 / .55);
+  --glass-border: rgb(255 255 255 / .16);
+  --glass-hi: rgb(255 255 255 / .22);
+  --glass-blur: 20px;
   /* time chunks: visible on glass in either theme */
   --chunk-future: rgb(255 255 255 / .14);
 }
@@ -39,15 +39,25 @@
   --bg: #f6f8fa; --surface: #ffffff; --surface-2: #eaeef2;
   --border: #d0d7de; --text: #1f2328; --text-dim: #656d76;
   --elev-1: 0 1px 3px rgb(0 0 0 / .12); --elev-2: 0 4px 12px rgb(0 0 0 / .16);
-  /* liquid glass — frosted, opaque enough to read text over any wallpaper */
-  --glass-bg: rgb(255 255 255 / .78);
-  --glass-bg-strong: rgb(255 255 255 / .9);
-  --glass-border: rgb(255 255 255 / .8);
+  /* liquid glass — more transparent; heavier blur keeps text legible */
+  --glass-bg: rgb(255 255 255 / .55);
+  --glass-bg-strong: rgb(255 255 255 / .68);
+  --glass-border: rgb(255 255 255 / .7);
   --glass-hi: rgb(255 255 255 / .95);
-  --glass-blur: 14px;
+  --glass-blur: 20px;
   /* time chunks: visible on glass in either theme */
   --chunk-future: rgb(0 0 0 / .16);
 }
+/* Glass off: flip every surface back to flat, opaque tokens. The opaque bg hides
+   whatever the (now zero) backdrop-filter does, so no per-surface edits needed. */
+:root[data-glass='off'] {
+  --glass-bg: var(--surface);
+  --glass-bg-strong: var(--surface);
+  --glass-border: var(--border);
+  --glass-hi: transparent;
+  --glass-blur: 0px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root { --t-fast: 0ms; --t-med: 0ms; }
 }

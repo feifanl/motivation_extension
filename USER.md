@@ -27,7 +27,7 @@ Keybinds are ignored while you're typing in a text field.
 - **Pins:** `‹` / `›` board selector in the card header; the `✎` button toggles rearrange mode (drag pins to reorder).
 - **Notes:** `＋ note` opens the composer; the `›` arrow button (with a count badge) opens the board. You can also drag a freshly-saved note toast to the right (~120 px) to open the board.
 - **Collapse tabs:** the quote, todo, and life-clock panels each have a small arrow tab to hide/show them.
-- **Settings:** the `⚙` gear (bottom-left). Theme toggles with the `☾` / `☀` button in the settings header.
+- **Settings:** the `⚙` gear (bottom-left). The header holds the theme (`☾` / `☀`) and liquid-glass (`◧`) toggles.
 
 ---
 
@@ -35,8 +35,9 @@ Keybinds are ignored while you're typing in a text field.
 
 Open with the `⚙` gear button. Grouped into one tab per module.
 
-### General
-- **Theme** — dark or light, toggled with the `☾` / `☀` button. Default: **dark**. Persists across restarts.
+### Header buttons (top of the panel)
+- **Theme** (`☾` / `☀`) — dark or light. Default: **dark**. Persists across restarts.
+- **Liquid glass** (`◧`) — frosted translucent surfaces (cards, panel, notes board) vs flat opaque. Lit green when on. Default: **on**. Persists across restarts.
 
 ### Life clock
 - **Birthday** — `YYYY-MM-DD`. Default: **unset**. Needed for the decade and life views (day/week/month/year work without it).

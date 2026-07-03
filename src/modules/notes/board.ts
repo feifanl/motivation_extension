@@ -29,6 +29,7 @@ export function mountBoard(ctx: ModuleContext, onChange: () => void): void {
 
   let notes: StickyNote[] = [];
   let open = false;
+  let closing = false; // true while the close fade is running (before detach)
 
   const grid = h('div', { class: 'notes-grid' });
   const backdrop = h('div', { class: 'notes-backdrop', onClick: close });
@@ -101,24 +102,28 @@ export function mountBoard(ctx: ModuleContext, onChange: () => void): void {
   async function show(): Promise<void> {
     notes = await loadNotes(ctx);
     render();
-    if (!open) {
-      overlay!.appendChild(root);
-      // next frame so the opacity transition has a start state
-      requestAnimationFrame(() => root.classList.add('open'));
-      open = true;
-    }
+    if (open) return;
+    open = true;
+    closing = false; // cancel any pending close so it can't yank a reopened board
+    if (!root.isConnected) overlay!.appendChild(root);
+    // next frame so the opacity transition has a start state
+    requestAnimationFrame(() => root.classList.add('open'));
   }
 
   function close(): void {
     if (!open) return;
     root.classList.remove('open');
     open = false;
-    const finish = () => root.remove();
+    closing = true;
+    // Only detach if we're still closing — a reopen during the fade clears the flag.
+    const finish = () => {
+      if (!closing) return;
+      closing = false;
+      root.removeEventListener('transitionend', onEnd);
+      root.remove();
+    };
     const onEnd = (e: TransitionEvent) => {
-      if (e.target === root) {
-        root.removeEventListener('transitionend', onEnd);
-        finish();
-      }
+      if (e.target === root) finish();
     };
     root.addEventListener('transitionend', onEnd);
     setTimeout(finish, 260); // guard a missed transitionend

@@ -2,7 +2,103 @@ import './settingsPanel.css';
 import { modules } from '../modules';
 import { getByPath, setByPath } from '../core/settings';
 import { h } from '../core/dom';
-import type { DeepPartial, ModuleContext, Settings, SettingsField } from '../core/types';
+import { fileToDataUrl } from '../modules/wallpaper/image';
+import type { DeepPartial, ModuleContext, Pin, Settings, SettingsField } from '../core/types';
+
+const PIN_EDGE = 1200; // downscale dropped/pasted images to bound storage
+
+// Pull image URLs out of pasted/dropped text (one per line or whitespace).
+function parseUrls(text: string): string[] {
+  return text
+    .split(/[\s\n]+/)
+    .map((s) => s.trim())
+    .filter((s) => /^(https?:|data:image\/)/i.test(s));
+}
+
+async function filesToPins(files: FileList | File[] | null | undefined): Promise<Pin[]> {
+  const out: Pin[] = [];
+  for (const f of Array.from(files ?? [])) {
+    if (!f.type.startsWith('image/')) continue;
+    try {
+      out.push({ imageUrl: await fileToDataUrl(f, PIN_EDGE) });
+    } catch {
+      /* skip a file that's too big or unreadable */
+    }
+  }
+  return out;
+}
+
+// Visual board editor: thumbnail grid (× to remove), drop image files, paste an
+// image or URL, or add URLs by hand. Writes the whole Pin[] back via onChange.
+function pinEditor(value: Pin[], onChange: (pins: Pin[]) => void): HTMLElement {
+  const pins = value ?? [];
+  const grid = h(
+    'div',
+    { class: 'pin-edit-grid' },
+    ...pins.map((p, i) =>
+      h(
+        'div',
+        { class: 'pin-edit-thumb' },
+        h('img', { src: p.imageUrl, alt: '', loading: 'lazy' }),
+        h(
+          'button',
+          { class: 'pin-edit-del', title: 'Remove', onClick: () => onChange(pins.filter((_, j) => j !== i)) },
+          '×',
+        ),
+      ),
+    ),
+    pins.length ? null : h('span', { class: 'pin-edit-empty' }, 'No pins yet'),
+  );
+
+  const urls = h('textarea', {
+    class: 'pin-edit-urls',
+    rows: 3,
+    placeholder: 'Paste image URLs (one per line), or drop / paste an image anywhere in this box.',
+  }) as HTMLTextAreaElement;
+  const addBtn = h(
+    'button',
+    {
+      class: 'primary',
+      onClick: () => {
+        const found = parseUrls(urls.value);
+        if (found.length) onChange([...pins, ...found.map((u) => ({ imageUrl: u }))]);
+      },
+    },
+    'Add URLs',
+  );
+
+  const box = h(
+    'div',
+    { class: 'pin-edit' },
+    grid,
+    h('div', { class: 'pin-edit-row' }, urls, addBtn),
+  );
+
+  box.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    box.classList.add('drag');
+  });
+  box.addEventListener('dragleave', () => box.classList.remove('drag'));
+  box.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    box.classList.remove('drag');
+    const dropped = await filesToPins(e.dataTransfer?.files);
+    const dragged = parseUrls(e.dataTransfer?.getData('text/uri-list') || e.dataTransfer?.getData('text') || '');
+    const added = [...dragged.map((u) => ({ imageUrl: u })), ...dropped];
+    if (added.length) onChange([...pins, ...added]);
+  });
+  urls.addEventListener('paste', async (e) => {
+    const items = Array.from(e.clipboardData?.items ?? []);
+    const files = items.filter((it) => it.kind === 'file').map((it) => it.getAsFile());
+    const fromFiles = await filesToPins(files.filter((f): f is File => !!f));
+    if (fromFiles.length) {
+      e.preventDefault(); // consumed the image; don't also drop a blob URL into the box
+      onChange([...pins, ...fromFiles]);
+    }
+  });
+
+  return box;
+}
 
 // Modules register a file handler for their type:'file' field (keyed by field.key).
 const fileHandlers = new Map<string, (file: File) => void | Promise<void>>();
@@ -287,6 +383,8 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
     onChange: (v: unknown) => void,
   ): HTMLElement {
     switch (field.type) {
+      case 'pins':
+        return pinEditor((value as Pin[]) ?? [], (next) => onChange(next));
       case 'toggle':
         return h('input', {
           type: 'checkbox',

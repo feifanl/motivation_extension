@@ -332,17 +332,6 @@ function persistOrder(): void {
 }
 
 // ---- settings schema ----
-function parsePins(raw: string): Pin[] {
-  return raw
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((imageUrl) => ({ imageUrl }));
-}
-function formatPins(val: unknown): string {
-  return ((val as Pin[]) ?? []).map((p) => p.imageUrl).join('\n');
-}
-
 const ROTATION_OPTS = [
   { value: 'off', label: 'Off' },
   { value: 'daily', label: 'Daily' },
@@ -367,7 +356,7 @@ const schema: SettingsField[] = [
     newItem: () => ({ id: crypto.randomUUID(), name: '', pins: [], rotation: 'off', index: 0 }),
     itemFields: [
       { key: 'name', label: 'Name', type: 'text', placeholder: 'hopecore' },
-      { key: 'pins', label: 'Image URLs (one per line)', type: 'textarea', parse: parsePins, format: formatPins },
+      { key: 'pins', label: 'Pins', type: 'pins' },
     ],
   },
   {

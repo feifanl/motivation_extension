@@ -66,9 +66,11 @@ When enabled with all three creds, cards in the configured list appear locally, 
 ### Pins
 - **Show pins wall** — off by default.
 - **Fill with** — One board / All boards pooled. Default: **One board**.
-- **Boards** — add named boards (e.g. "hopecore"), each with image URLs, one per line.
+- **Boards** — add named boards (e.g. "hopecore"). Each board has a visual **pin editor**: drop image files onto it, paste an image or URL, add URLs by hand, and remove pins with the `×` on each thumbnail. Dropped/pasted images are downscaled and stored locally.
 - **Auto-switch board** — Off / Daily / Every N minutes (one-board mode only). Default: **Off**. Off = switch manually with `[` `]` or the header selector.
 - **Board interval (min)** — used when auto-switch is "Every N minutes".
+
+**Add pins while browsing:** right-click any image on the web → **Add image to pins board** → pick a board (or "＋ New board…"). It's saved instantly and appears on the wall next time you open a tab. (No Pinterest login — Pinterest's API needs a server + app review, out of scope for a local extension.)
 
 ### Notes
 - **Show notes** — on by default. Off hides the corner buttons.
@@ -84,3 +86,4 @@ Notes are sticky-note "paper" in five colors (green / yellow / blue / red / gray
   - **Trello** — only if you enable sync and enter credentials.
   - **ZenQuotes** — only if the quote "fetch online" toggle is on.
 - With both off (or offline), the dashboard is fully functional: fonts are bundled, the wallpaper paints its color first, and quotes fall back to the bundled set.
+- The **right-click "Add image to pins board"** feature uses the `contextMenus` permission and a small background worker. It only reads the URL of the image you right-click and writes it to your local boards — no page content is collected and nothing is uploaded.

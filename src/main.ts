@@ -37,6 +37,19 @@ async function boot(): Promise<void> {
     applyGlass(ctx.settings.ui.glass);
   });
 
+  // Settings can also change from outside this page — the service worker's
+  // "Add image to pins board" writes storage directly. Reload and re-broadcast
+  // so open tabs update live. Skip when the change matches our own last write.
+  chrome.storage?.onChanged?.addListener((changes, area) => {
+    if (area !== 'local' || !changes.settings) return;
+    loadSettings().then((s) => {
+      if (JSON.stringify(s) === JSON.stringify(ctx.settings)) return; // our own write
+      applyTheme(s.theme);
+      applyGlass(s.ui.glass);
+      bus.emit('settings-changed', s);
+    });
+  });
+
   const app = document.getElementById('app')!;
   await mountAll(ctx, app);
 

@@ -14,10 +14,15 @@
   border-radius: var(--r-md);
   box-shadow: var(--elev-1);
   transition: transform var(--t-fast);
+  cursor: grab; /* always draggable: click-hold to rearrange */
+  touch-action: none; /* let pointer drag work on touch/trackpad */
 }
 .pin-item:hover {
   transform: scale(1.015);
   z-index: 1;
+}
+.pin-item:active {
+  cursor: grabbing;
 }
 .pin-img {
   display: block;
@@ -26,36 +31,7 @@
   object-fit: cover;
 }
 
-/* While rearranging pins, the content layer (life-clock, todo, quote, corner)
-   steps aside so every visible tile is draggable, not just the gutters. */
-:root.pins-editing .layout,
-:root.pins-editing .slot-sidebar,
-:root.pins-editing .slot-corner,
-:root.pins-editing .slot-main *,
-:root.pins-editing .mod-quote {
-  pointer-events: none !important;
-}
-
-/* ---- editor: drag to rearrange ---- */
-.pins-wall.editing {
-  pointer-events: none; /* wall stays transparent; tiles opt back in below */
-}
-.pins-wall.editing .pin-item {
-  pointer-events: auto;
-  cursor: grab;
-  touch-action: none; /* let pointer drag work on touch/trackpad */
-}
-.pins-wall.editing .pin-item:hover {
-  transform: none; /* no scale-jitter while rearranging */
-}
-.pin-editable::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  box-shadow: inset 0 0 0 2px var(--glass-border);
-  border-radius: inherit;
-  pointer-events: none;
-}
+/* ---- drag to rearrange ---- */
 .pin-dragging {
   opacity: 0.35;
   cursor: grabbing;
@@ -77,29 +53,6 @@
   height: 100%;
   object-fit: cover;
 }
-.pins-edit-btn {
-  position: fixed;
-  top: var(--s-5);
-  right: var(--s-5);
-  z-index: 6;
-  min-width: 34px;
-  height: 34px;
-  padding: 0 var(--s-3);
-  font-size: var(--fs-md);
-  line-height: 1;
-  border-radius: 999px;
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--elev-2);
-}
-.pins-edit-btn.active {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
-}
-
 /* board switcher pill, floating bottom-center */
 .pins-pill {
   position: fixed;

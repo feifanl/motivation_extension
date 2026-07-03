@@ -23,10 +23,10 @@ let unsub: (() => void) | undefined;
 let manualBoard = false;
 let renderToken = 0; // guards against stale async renders
 
-// ---- editor (drag-to-rearrange) state ----
-let editMode = false;
+// ---- drag-to-rearrange state (always on: grab a pin and drag) ----
 let currentLoaded: Loaded[] = []; // live order shown in the wall
 let editableBoardId: string | null = null; // board whose pins the order writes back to
+let suppressClick = false; // a drag moved a pin → swallow the trailing click
 let draggingIdx = -1;
 let ghost: HTMLElement | null = null;
 let dragOffX = 0;
@@ -90,12 +90,18 @@ function tile(l: Loaded, idx: number): HTMLElement {
     img,
   ) as HTMLAnchorElement;
   el.dataset.index = String(idx);
-  if (editMode) {
-    el.classList.add('pin-editable');
-    if (idx === draggingIdx) el.classList.add('pin-dragging');
-    el.addEventListener('pointerdown', (e) => startDrag(e as PointerEvent, idx));
-    el.addEventListener('click', (e) => e.preventDefault()); // no navigation while editing
-  }
+  el.draggable = false; // no native anchor/image drag ghost (we roll our own)
+  img.draggable = false;
+  if (idx === draggingIdx) el.classList.add('pin-dragging');
+  el.addEventListener('pointerdown', (e) => startDrag(e as PointerEvent, idx));
+  // A drag that actually moved a pin suppresses the trailing click so it
+  // rearranges instead of opening its link; a click without a move navigates.
+  el.addEventListener('click', (e) => {
+    if (suppressClick) {
+      e.preventDefault();
+      suppressClick = false;
+    }
+  });
   return el;
 }
 
@@ -105,7 +111,6 @@ function tile(l: Loaded, idx: number): HTMLElement {
 // bottom (clipped) — pin/board rotation cycles what's visible.
 function buildWallDom(loaded: Loaded[]): HTMLElement {
   const wall = h('div', { class: 'pins-wall' });
-  if (editMode) wall.classList.add('editing');
 
   const avail = window.innerWidth - GAP * 2;
   const cols = Math.max(1, Math.round(avail / TARGET_COL));
@@ -175,15 +180,13 @@ async function render(): Promise<void> {
   }
 
   currentLoaded = loaded;
-  // Editing writes a flat order back to one board. Board mode → active board;
-  // all-pins mode is editable only when it collapses to a single board.
+  // Rearranging writes a flat order back to one board. Board mode → active board;
+  // all-pins mode persists only when it collapses to a single board (else the
+  // drag still re-justifies the wall live, but there's no single board to save to).
   editableBoardId =
     p.mode === 'board' ? (activeBoard ? activeBoard.id : null) : p.boards.length === 1 ? p.boards[0].id : null;
-  if (!editableBoardId) editMode = false;
-  syncEditClass();
 
   const children: HTMLElement[] = [buildWallDom(loaded)];
-  if (editableBoardId) children.push(editButton());
   if (p.mode === 'board' && p.boards.length > 1 && activeBoard) {
     children.push(
       h(
@@ -215,33 +218,7 @@ function switchBoard(dir: number): void {
   ctx.saveSettings({ pins: { activeBoardId: p.boards[next].id } });
 }
 
-// ---- editor: drag pins to rearrange, wall re-justifies live ----
-function editButton(): HTMLElement {
-  return h(
-    'button',
-    {
-      class: 'pins-edit-btn' + (editMode ? ' active' : ''),
-      title: editMode ? 'Done rearranging' : 'Rearrange pins',
-      onClick: toggleEdit,
-    },
-    editMode ? 'Done' : '✎',
-  );
-}
-
-function syncEditClass(): void {
-  // While editing, make the whole content layer pointer-transparent so tiles
-  // under the life-clock/todo columns are draggable everywhere they're visible.
-  document.documentElement.classList.toggle('pins-editing', editMode);
-}
-
-function toggleEdit(): void {
-  editMode = !editMode && !!editableBoardId;
-  syncEditClass();
-  rebuildWall();
-  const btn = host.querySelector('.pins-edit-btn');
-  if (btn) btn.replaceWith(editButton());
-}
-
+// ---- drag pins to rearrange, wall re-justifies live ----
 function moveItem<T>(arr: T[], from: number, to: number): void {
   const [x] = arr.splice(from, 1);
   arr.splice(to, 0, x);
@@ -273,8 +250,11 @@ function positionGhost(x: number, y: number): void {
   ghost.style.top = `${y - dragOffY}px`;
 }
 
+// Grab immediately on press (same feel as the old edit mode). The ghost/dim
+// appear at once; if the pointer never moves a pin, endDrag leaves the order
+// untouched and the trailing click opens the pin's link.
 function startDrag(e: PointerEvent, idx: number): void {
-  if (!editMode || e.button !== 0) return;
+  if (e.button !== 0) return;
   e.preventDefault();
   draggingIdx = idx;
   dragMoved = false;
@@ -283,6 +263,7 @@ function startDrag(e: PointerEvent, idx: number): void {
   dragOffY = e.clientY - rect.top;
 
   const gi = h('img', { alt: '' }) as HTMLImageElement;
+  gi.draggable = false;
   gi.src = currentLoaded[idx].pin.imageUrl;
   ghost = h('div', { class: 'pin-ghost' }, gi);
   ghost.style.width = `${rect.width}px`;
@@ -326,7 +307,14 @@ function endDrag(): void {
   draggingIdx = -1;
   dragMoved = false;
   rebuildWall(); // clear dragging class
-  if (moved) persistOrder();
+  if (moved) {
+    suppressClick = true; // a real rearrange → swallow the trailing click
+    persistOrder();
+    // Clear next tick so a drag that emits no click never poisons a later one.
+    setTimeout(() => {
+      suppressClick = false;
+    }, 0);
+  }
 }
 
 // Write the live order back to the editable board, preserving any pins that

@@ -1,0 +1,217 @@
+/* Notes: corner buttons, floating composer/toast, full-screen board overlay.
+   Real sticky-note look — each note is solid "paper" (--note-paper) with dark
+   ink, a soft drop shadow and a slight tilt, regardless of theme. --note-accent
+   is the deeper shade (swatch outline / toast rail). */
+
+.note-green  { --note-paper: #b7e8a0; --note-accent: #4e9a2a; }
+.note-yellow { --note-paper: #ffe873; --note-accent: #d0a400; }
+.note-blue   { --note-paper: #a8d4ff; --note-accent: #2f6fd0; }
+.note-red    { --note-paper: #ffb3ad; --note-accent: #d0433a; }
+.note-gray   { --note-paper: #e2e6ea; --note-accent: #8b949e; }
+
+/* Dark ink + handwritten face used on every paper colour. Handwriting stack is
+   system-only (no webfont) so it never touches the network. */
+:root {
+  --note-ink: #23252a;
+  --note-ink-dim: #5b5f66;
+  --font-hand: 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', 'Chalkboard SE', cursive;
+}
+
+/* Anchor the composer/toast above the corner buttons without shifting them. */
+.mod-notes { position: relative; display: flex; gap: var(--s-2); align-items: center; }
+
+.notes-add-btn,
+.notes-board-btn {
+  position: relative;
+  font-size: var(--fs-sm);
+}
+.notes-board-btn { font-weight: 600; }
+
+.notes-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* ---- composer popover (anchored above the + note button) ---- */
+.notes-composer {
+  position: absolute;
+  bottom: calc(100% + var(--s-2));
+  left: 0;
+  width: 280px;
+  /* the composer IS the paper: its background tracks the selected colour */
+  background: var(--note-paper);
+  color: var(--note-ink);
+  border: none;
+  border-radius: 2px;
+  box-shadow: var(--elev-2);
+  padding: var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  z-index: 6;
+  transition: background var(--t-fast);
+}
+.notes-composer-text {
+  width: 100%;
+  resize: vertical;
+  font-family: var(--font-hand);
+  font-size: var(--fs-md);
+  color: var(--note-ink);
+  background: rgb(255 255 255 / 0.35);
+  border: 1px solid rgb(0 0 0 / 0.15);
+}
+.notes-composer-text::placeholder { color: var(--note-ink-dim); }
+.notes-composer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.notes-composer-count { font-size: var(--fs-xs); color: var(--note-ink-dim); }
+.notes-composer-actions { display: flex; justify-content: flex-end; gap: var(--s-2); }
+
+.notes-swatches { display: flex; gap: var(--s-2); }
+.notes-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 3px;
+  background: var(--note-paper);
+  border: 2px solid transparent;
+  box-shadow: var(--elev-1);
+}
+.notes-swatch:hover { border-color: var(--note-ink-dim); }
+.notes-swatch.selected { border-color: var(--note-ink); }
+
+/* ---- saved-note toast (drag right ≥120px to open the board) ---- */
+.notes-toast {
+  position: absolute;
+  bottom: calc(100% + var(--s-2));
+  left: 0;
+  max-width: 220px;
+  background: var(--note-paper);
+  color: var(--note-ink);
+  border: none;
+  border-radius: 2px;
+  box-shadow: var(--elev-2);
+  padding: var(--s-3);
+  font-family: var(--font-hand);
+  font-size: var(--fs-sm);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  z-index: 6;
+}
+.notes-toast.dragging { cursor: grabbing; }
+.notes-toast-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---- full-screen board overlay ---- */
+.notes-overlay {
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--t-med);
+}
+.notes-overlay.open { opacity: 1; }
+.notes-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 0.55);
+}
+.notes-board {
+  position: absolute;
+  inset: var(--s-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--elev-2);
+  padding: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.notes-board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s-4);
+}
+.notes-board-title { font-family: var(--font-display); font-size: var(--fs-xl); margin: 0; }
+.notes-board-close { font-size: var(--fs-md); line-height: 1; }
+
+.notes-empty { color: var(--text-dim); }
+
+.notes-grid {
+  overflow-y: auto;
+  columns: 220px;
+  column-gap: var(--s-5);
+  padding: var(--s-3) var(--s-2) var(--s-6);
+}
+.note-card {
+  break-inside: avoid;
+  margin-bottom: var(--s-5);
+  position: relative;
+  min-height: 150px;
+  background: var(--note-paper);
+  color: var(--note-ink);
+  border: none;
+  border-radius: 2px;
+  padding: var(--s-4);
+  font-family: var(--font-hand);
+  /* soft paper drop shadow, warmer than the flat token shadow */
+  box-shadow: 0 6px 14px rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.3);
+  transition: transform var(--t-fast), box-shadow var(--t-fast);
+  transform-origin: top left;
+  will-change: transform;
+}
+.note-card:hover {
+  transform: scale(1.03);
+  box-shadow: 0 10px 22px rgb(0 0 0 / 0.5), 0 2px 4px rgb(0 0 0 / 0.35);
+  z-index: 1;
+}
+/* Peel-off on delete: the note curls up from its top-left corner and lifts away.
+   A longer, eased transition sells the paper peel; JS removes it on transitionend. */
+.note-card.peeling {
+  pointer-events: none;
+  z-index: 2;
+  transition: transform 340ms cubic-bezier(0.4, 0, 0.6, 1), opacity 340ms ease-in;
+  transform: rotate(-14deg) translate(-14%, -46%) scale(0.72) skewX(-8deg);
+  opacity: 0;
+  box-shadow: 0 22px 30px rgb(0 0 0 / 0.55);
+}
+.note-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-right: var(--s-4);
+  font-size: var(--fs-lg);
+  line-height: 1.35;
+}
+.note-date { margin-top: var(--s-4); font-size: var(--fs-xs); color: var(--note-ink-dim); }
+.note-del {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  line-height: 1;
+  background: transparent;
+  border: none;
+  color: var(--note-ink-dim);
+}
+.note-del:hover { color: var(--danger); background: transparent; border: none; }

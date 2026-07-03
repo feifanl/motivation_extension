@@ -59,6 +59,7 @@ export interface DashboardModule {
 
 // ---------- Settings (single typed schema, root storage key "settings") ----------
 export type LifeView = 'day' | 'week' | 'month' | 'year' | 'decade' | 'life';
+export type SearchEngine = 'google' | 'duckduckgo' | 'brave' | 'bing';
 
 export interface Settings {
   version: 1; // migration guard
@@ -99,6 +100,10 @@ export interface Settings {
   notes: {
     enabled: boolean;
   };
+  search: {
+    enabled: boolean;
+    engine: SearchEngine;
+  };
   ui: {
     quoteOpen: boolean; // quote card pulled up from its bottom tab
     todoHidden: boolean; // todo sidebar collapsed to a handle
@@ -124,6 +129,7 @@ export const DEFAULT_SETTINGS: Settings = {
     allIndex: 0,
   },
   notes: { enabled: true },
+  search: { enabled: true, engine: 'google' },
   ui: { quoteOpen: false, todoHidden: false, clockMinimized: false, glass: true },
 };
 

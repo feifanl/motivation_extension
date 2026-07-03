@@ -17,6 +17,7 @@ This file is the source of truth for **every keybind and every setting**. If it 
 | `]` | Next board | Pins wall (one-board mode) |
 | `B` | Open the notes board | Anywhere |
 | `Enter` | Add the typed task | Todo input |
+| `Enter` | Run the web search | Search bar |
 | `Esc` | Close the open overlay / settings panel | Notes board, settings |
 
 Keybinds are ignored while you're typing in a text field.
@@ -71,6 +72,10 @@ When enabled with all three creds, cards in the configured list appear locally, 
 - **Board interval (min)** — used when auto-switch is "Every N minutes".
 
 **Add pins while browsing:** right-click any image on the web → **Add image to pins board** → pick a board (or "＋ New board…"). It's saved instantly and appears on the wall next time you open a tab. (No Pinterest login — Pinterest's API needs a server + app review, out of scope for a local extension.)
+
+### Search
+- **Show search bar** — on by default. A glass pill above the life clock, focused on a fresh tab. Type and press `Enter` to search.
+- **Search engine** — Google / DuckDuckGo / Brave / Bing. Default: **Google**.
 
 ### Notes
 - **Show notes** — on by default. Off hides the corner buttons.

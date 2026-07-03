@@ -1,0 +1,29 @@
+/* Web search bar: a glass pill centered above the life clock. */
+.mod-search {
+  display: flex;
+  justify-content: center;
+}
+.search-bar {
+  pointer-events: auto; /* parent .slot-main is pointer-events:none */
+  width: min(520px, 100%);
+}
+.search-input {
+  width: 100%;
+  padding: var(--s-3) var(--s-5);
+  font-size: var(--fs-md);
+  text-align: center;
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur)) saturate(130%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(130%);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-hi), var(--elev-1);
+}
+.search-input::placeholder {
+  color: var(--text-dim);
+}
+.search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}

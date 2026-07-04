@@ -47,8 +47,12 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
 
   let boardId: string;
   if (id === NEW_BOARD) {
+    // Each "New board" makes a fresh board with the next free "Saved (N)" name.
+    const taken = new Set(boards.map((b) => b.name.trim().toLowerCase()));
+    let n = 1;
+    while (taken.has(`saved (${n})`)) n++;
     boardId = crypto.randomUUID();
-    const board: PinBoard = { id: boardId, name: 'Saved', pins: [], rotation: 'off', index: 0 };
+    const board: PinBoard = { id: boardId, name: `Saved (${n})`, pins: [], rotation: 'off', index: 0 };
     boards.push(board);
   } else {
     boardId = id.slice(BOARD_PREFIX.length);

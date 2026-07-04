@@ -16,6 +16,7 @@ const GAP = 8; // px between tiles; matches CSS
 let ctx: ModuleContext;
 let host: HTMLElement;
 let boardTimer: ReturnType<typeof setInterval> | undefined;
+let screenTimer: ReturnType<typeof setInterval> | undefined;
 let onKey: ((e: KeyboardEvent) => void) | undefined;
 let onResize: (() => void) | undefined;
 let resizeRaf = 0;
@@ -57,6 +58,27 @@ function isTyping(target: EventTarget | null): boolean {
 function clearTimers(): void {
   if (boardTimer) clearInterval(boardTimer);
   boardTimer = undefined;
+  if (screenTimer) clearInterval(screenTimer);
+  screenTimer = undefined;
+}
+
+// How many tiles fit before the masonry runs past the viewport bottom — the
+// "page" size the screen rotation advances by. Uses the same packing math as
+// buildWallDom, no DOM measuring.
+function pageCapacity(loaded: Loaded[]): number {
+  const viewH = window.innerHeight;
+  const avail = window.innerWidth - GAP * 2;
+  const cols = Math.max(1, Math.round(avail / TARGET_COL));
+  const colW = (avail - GAP * (cols - 1)) / cols;
+  const colH = new Array(cols).fill(0);
+  let count = 0;
+  for (const l of loaded) {
+    let c = 0;
+    for (let i = 1; i < cols; i++) if (colH[i] < colH[c]) c = i;
+    if (GAP + colH[c] < viewH) count++; // tile's top edge is on-screen
+    colH[c] += colW / l.aspect + GAP;
+  }
+  return Math.max(1, count);
 }
 
 interface Loaded {
@@ -179,14 +201,18 @@ async function render(): Promise<void> {
     return;
   }
 
-  currentLoaded = loaded;
+  // Screen rotation: when the pool overflows the viewport, advance a whole
+  // "page" of pins each cycle so every pin gets screen time over time.
+  const shown = screenRotate(loaded, p.screenRotation ?? 'off', p.screenIntervalMinutes);
+
+  currentLoaded = shown;
   // Rearranging writes a flat order back to one board. Board mode → active board;
   // all-pins mode persists only when it collapses to a single board (else the
   // drag still re-justifies the wall live, but there's no single board to save to).
   editableBoardId =
     p.mode === 'board' ? (activeBoard ? activeBoard.id : null) : p.boards.length === 1 ? p.boards[0].id : null;
 
-  const children: HTMLElement[] = [buildWallDom(loaded)];
+  const children: HTMLElement[] = [buildWallDom(shown)];
   if (p.mode === 'board' && p.boards.length > 1 && activeBoard) {
     children.push(boardSwitcher(activeBoard));
   }
@@ -199,6 +225,27 @@ async function render(): Promise<void> {
       render();
     }, m * 60_000);
   }
+
+  // Advance the on-screen page live while the tab stays open.
+  if ((p.screenRotation ?? 'off') === 'interval' && loaded.length > pageCapacity(loaded)) {
+    const m = p.screenIntervalMinutes && p.screenIntervalMinutes > 0 ? p.screenIntervalMinutes : 60;
+    screenTimer = setInterval(render, m * 60_000);
+  }
+}
+
+// Rotate the loaded pool by whole pages so a different screenful shows each
+// cycle. 'off' or a pool that already fits → returned unchanged.
+function screenRotate(loaded: Loaded[], rotation: PinRotation, intervalMin: number | undefined): Loaded[] {
+  if (rotation === 'off') return loaded;
+  const page = pageCapacity(loaded);
+  if (loaded.length <= page) return loaded;
+  const pages = Math.ceil(loaded.length / page);
+  const cycle =
+    rotation === 'daily'
+      ? localDayNumber()
+      : Math.floor(Date.now() / ((intervalMin && intervalMin > 0 ? intervalMin : 60) * 60_000));
+  const offset = ((cycle % pages) + pages) % pages * page;
+  return [...loaded.slice(offset), ...loaded.slice(0, offset)];
 }
 
 // Collapsible board switcher (top-right): a side pull-tab (matching the todo
@@ -398,6 +445,20 @@ const schema: SettingsField[] = [
     type: 'number',
     min: 1,
     showIf: (s) => s.pins.mode === 'board' && s.pins.boardRotation === 'interval',
+  },
+  {
+    key: 'pins.screenRotation',
+    label: 'Rotate pins on screen',
+    type: 'select',
+    options: ROTATION_OPTS,
+    help: 'When a board (or the pooled set) has more pins than fit on screen, cycle through them.',
+  },
+  {
+    key: 'pins.screenIntervalMinutes',
+    label: 'Screen rotation interval (min)',
+    type: 'number',
+    min: 1,
+    showIf: (s) => s.pins.screenRotation === 'interval',
   },
 ];
 

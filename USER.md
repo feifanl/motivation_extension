@@ -70,6 +70,8 @@ When enabled with all three creds, cards in the configured list appear locally, 
 - **Boards** — add named boards (e.g. "hopecore"). Each board has a visual **pin editor**: drop image files onto it, paste an image or URL, add URLs by hand, and remove pins with the `×` on each thumbnail. Dropped/pasted images are downscaled and stored locally.
 - **Auto-switch board** — Off / Daily / Every N minutes (one-board mode only). Default: **Off**. Off = switch manually with `[` `]` or the header selector.
 - **Board interval (min)** — used when auto-switch is "Every N minutes".
+- **Rotate pins on screen** — Off / Daily / Every N minutes. Default: **Off**. When a board (or the pooled set in All mode) has more pins than fit on screen, cycle through them a screenful at a time so every pin gets shown.
+- **Screen rotation interval (min)** — used when screen rotation is "Every N minutes".
 
 **Add pins while browsing:** right-click any image on the web → **Add image to pins board** → pick a board (or "＋ New board…"). It's saved instantly and appears on the wall next time you open a tab. (No Pinterest login — Pinterest's API needs a server + app review, out of scope for a local extension.)
 

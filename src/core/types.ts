@@ -96,6 +96,8 @@ export interface Settings {
     allRotation: PinRotation; // all mode: how the pooled pins rotate
     allIntervalMinutes?: number; // used iff allRotation === 'interval'
     allIndex: number; // all mode: current pin in the pooled list (manual cursor)
+    screenRotation: PinRotation; // cycle which pins fill the wall when the pool overflows the screen
+    screenIntervalMinutes?: number; // used iff screenRotation === 'interval'
   };
   notes: {
     enabled: boolean;
@@ -128,6 +130,7 @@ export const DEFAULT_SETTINGS: Settings = {
     boardRotation: 'off',
     allRotation: 'daily',
     allIndex: 0,
+    screenRotation: 'off',
   },
   notes: { enabled: true },
   search: { enabled: true, engine: 'google' },

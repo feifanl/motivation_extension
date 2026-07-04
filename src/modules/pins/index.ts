@@ -188,15 +188,7 @@ async function render(): Promise<void> {
 
   const children: HTMLElement[] = [buildWallDom(loaded)];
   if (p.mode === 'board' && p.boards.length > 1 && activeBoard) {
-    children.push(
-      h(
-        'div',
-        { class: 'pins-pill' },
-        h('button', { class: 'pins-navbtn', title: 'Previous board ([)', onClick: () => switchBoard(-1) }, '‹'),
-        h('span', { class: 'pins-board-name' }, activeBoard.name || 'Board'),
-        h('button', { class: 'pins-navbtn', title: 'Next board (])', onClick: () => switchBoard(1) }, '›'),
-      ),
-    );
+    children.push(boardSwitcher(activeBoard));
   }
   host.replaceChildren(...children);
 
@@ -207,6 +199,40 @@ async function render(): Promise<void> {
       render();
     }, m * 60_000);
   }
+}
+
+// Collapsible board switcher (top-right): a side pull-tab (matching the todo
+// handle) that reveals the prev/name/next pill.
+function toggleBoards(): void {
+  ctx.saveSettings({ ui: { pinsBoardsOpen: !ctx.settings.ui.pinsBoardsOpen } });
+}
+
+function boardSwitcher(activeBoard: PinBoard): HTMLElement {
+  const open = ctx.settings.ui.pinsBoardsOpen;
+  const tab = h(
+    'button',
+    {
+      class: 'pins-tab',
+      title: open ? 'Hide boards' : 'Switch board',
+      'aria-label': open ? 'Hide boards' : 'Switch board',
+      onClick: toggleBoards,
+    },
+    open ? '›' : '‹',
+  );
+  const kids: HTMLElement[] = [];
+  if (open) {
+    kids.push(
+      h(
+        'div',
+        { class: 'pins-pill' },
+        h('button', { class: 'pins-navbtn', title: 'Previous board ([)', onClick: () => switchBoard(-1) }, '‹'),
+        h('span', { class: 'pins-board-name' }, activeBoard.name || 'Board'),
+        h('button', { class: 'pins-navbtn', title: 'Next board (])', onClick: () => switchBoard(1) }, '›'),
+      ),
+    );
+  }
+  kids.push(tab);
+  return h('div', { class: 'pins-boards' }, ...kids);
 }
 
 function switchBoard(dir: number): void {

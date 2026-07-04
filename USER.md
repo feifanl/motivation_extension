@@ -1,4 +1,4 @@
-# Last Sunday — User Guide
+# Memento Mori Motivation Extension — User Guide
 
 A memento-mori new-tab dashboard: a life clock, daily todos (optionally Trello-synced), a daily quote, a pins wall, and sticky notes. Everything lives locally in your browser.
 
@@ -25,7 +25,7 @@ Keybinds are ignored while you're typing in a text field.
 ### On-screen controls (no keyboard needed)
 
 - **Life clock:** `−` / `+` zoom buttons; click any view name in the breadcrumb (`day · week · month · year · decade · life`) to jump straight to it.
-- **Pins:** `‹` / `›` board selector in the card header. Rearrange pins any time — drag a pin to move it; a plain click opens its link.
+- **Pins:** a chevron tab (top-right) opens the board switcher (`‹` name `›`); `[` / `]` also cycle boards. Rearrange pins any time — drag a pin to move it; a plain click opens its link.
 - **Notes:** `＋ note` opens the composer; the `›` arrow button (with a count badge) opens the board. You can also drag a freshly-saved note toast to the right (~120 px) to open the board.
 - **Collapse tabs:** the quote, todo, and life-clock panels each have a small arrow tab to hide/show them.
 - **Settings:** the `⚙` gear (bottom-left). The header holds the theme (`☾` / `☀`) and liquid-glass (`◧`) toggles.

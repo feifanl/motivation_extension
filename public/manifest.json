@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Last Sunday — Memento Mori New Tab",
+  "name": "memento mori motivation extension",
   "version": "0.1.0",
   "description": "A memento-mori dashboard: life clock, daily todos, quotes.",
   "chrome_url_overrides": { "newtab": "newtab.html" },

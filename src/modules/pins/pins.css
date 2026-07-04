@@ -111,13 +111,36 @@
 .pin-edit-urls { width: 100%; min-height: 68px; resize: vertical; }
 .pin-edit-row .primary { align-self: flex-end; }
 
-/* board switcher pill, floating bottom-center */
-.pins-pill {
+/* Collapsible board switcher, top-right (the free corner: bottom holds the
+   quote, top-left the todo sidebar, top-center the search bar). A chevron tab
+   reveals the prev/name/next pill. */
+.pins-boards {
   position: fixed;
-  bottom: var(--s-5);
-  left: 50%;
-  transform: translateX(-50%);
+  top: var(--s-5);
+  right: var(--s-5);
   z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+/* side pull-tab, matching the todo handle (portrait, arrow glyph) */
+.pins-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 44px;
+  padding: 0;
+  font-size: var(--fs-lg);
+  line-height: 1;
+  border-radius: var(--r-sm);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--elev-1);
+}
+.pins-pill {
   display: flex;
   align-items: center;
   gap: var(--s-2);

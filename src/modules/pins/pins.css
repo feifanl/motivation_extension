@@ -31,6 +31,21 @@
   object-fit: cover;
 }
 
+/* panorama scroll: a strip of full-height columns that slides one column left */
+.pins-strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  will-change: transform;
+}
+.pins-col {
+  position: absolute;
+  top: 0;
+  height: 100vh;
+  overflow: hidden; /* clip the bottom tile that fills past the edge */
+}
+
 /* ---- drag to rearrange ---- */
 .pin-dragging {
   opacity: 0.35;
@@ -85,12 +100,15 @@
   border-radius: var(--r-sm);
   overflow: hidden;
   background: var(--surface-2);
+  cursor: grab;
 }
+.pin-edit-thumb:active { cursor: grabbing; }
 .pin-edit-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  pointer-events: none; /* the thumb owns the drag, not the image */
 }
 .pin-edit-del {
   position: absolute;

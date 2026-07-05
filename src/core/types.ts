@@ -96,8 +96,9 @@ export interface Settings {
     allRotation: PinRotation; // all mode: how the pooled pins rotate
     allIntervalMinutes?: number; // used iff allRotation === 'interval'
     allIndex: number; // all mode: current pin in the pooled list (manual cursor)
-    screenRotation: PinRotation; // cycle which pins fill the wall when the pool overflows the screen
+    screenRotation: PinScreenRotation; // cycle which pins fill the wall when the pool overflows; 'scroll' = panorama
     screenIntervalMinutes?: number; // used iff screenRotation === 'interval'
+    screenScrollSeconds?: number; // seconds between column slides, iff screenRotation === 'scroll'
   };
   notes: {
     enabled: boolean;
@@ -131,6 +132,7 @@ export const DEFAULT_SETTINGS: Settings = {
     allRotation: 'daily',
     allIndex: 0,
     screenRotation: 'off',
+    screenScrollSeconds: 100,
   },
   notes: { enabled: true },
   search: { enabled: true, engine: 'google' },
@@ -171,6 +173,8 @@ export interface Pin {
 }
 
 export type PinRotation = 'off' | 'daily' | 'interval';
+// Screen rotation adds a 'scroll' panorama mode (slide one column at a time).
+export type PinScreenRotation = PinRotation | 'scroll';
 
 export interface PinBoard {
   id: string; // crypto.randomUUID()

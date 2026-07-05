@@ -5,6 +5,7 @@ import type {
   Pin,
   PinBoard,
   PinRotation,
+  PinScreenRotation,
   SettingsField,
 } from '../../core/types';
 import { h } from '../../core/dom';
@@ -34,6 +35,11 @@ let dragOffX = 0;
 let dragOffY = 0;
 let dragMoved = false;
 let rebuildRaf = 0;
+
+// ---- panorama scroll state ----
+let scrollCols: Loaded[][] = []; // pool packed into vertical columns
+let panoramaMode = false; // wall is currently the sliding strip
+let panoramaAnim: Animation | undefined; // the drift animation (paused while dragging)
 
 function localDayNumber(): number {
   const offset = new Date().getTimezoneOffset() * 60_000;
@@ -103,7 +109,7 @@ function preload(pool: Pin[]): Promise<Loaded[]> {
 
 const TARGET_COL = 250; // preferred column width; column count derives from viewport
 
-function tile(l: Loaded, idx: number): HTMLElement {
+function tile(l: Loaded, idx: number, drag = true): HTMLElement {
   const img = h('img', { class: 'pin-img', alt: '' }) as HTMLImageElement;
   img.src = l.pin.imageUrl; // cached from preload → instant
   const el = h(
@@ -114,6 +120,7 @@ function tile(l: Loaded, idx: number): HTMLElement {
   el.dataset.index = String(idx);
   el.draggable = false; // no native anchor/image drag ghost (we roll our own)
   img.draggable = false;
+  if (!drag) return el; // scroll/panorama tiles are plain links (no rearrange)
   if (idx === draggingIdx) el.classList.add('pin-dragging');
   el.addEventListener('pointerdown', (e) => startDrag(e as PointerEvent, idx));
   // A drag that actually moved a pin suppresses the trailing click so it
@@ -156,10 +163,100 @@ function buildWallDom(loaded: Loaded[]): HTMLElement {
   return wall;
 }
 
+// ---- panorama: pack the pool into vertical columns, show a strip that slides
+// one column left at a time ----
+
+// Column width chosen so an integer number of columns fills the viewport exactly
+// (no black gutter on the right), matching the masonry wall's sizing.
+function colMetrics(): { cols: number; colW: number; step: number } {
+  const avail = window.innerWidth - GAP * 2;
+  const cols = Math.max(1, Math.round(avail / TARGET_COL));
+  const colW = (avail - GAP * (cols - 1)) / cols;
+  return { cols, colW, step: colW + GAP };
+}
+
+function buildColumns(loaded: Loaded[], colW: number): Loaded[][] {
+  const viewH = window.innerHeight;
+  const cols: Loaded[][] = [];
+  let cur: Loaded[] = [];
+  let curH = GAP;
+  for (const l of loaded) {
+    cur.push(l);
+    curH += colW / l.aspect + GAP;
+    // Fill each column past the bottom edge (the last tile clips) so there's no
+    // black gap under a short column.
+    if (curH >= viewH) {
+      cols.push(cur);
+      cur = [];
+      curH = GAP;
+    }
+  }
+  if (cur.length) cols.push(cur);
+  return cols;
+}
+
+function columnDom(col: Loaded[], leftPx: number, colW: number, startIdx: number): HTMLElement {
+  const el = h('div', { class: 'pins-col' });
+  el.style.left = `${leftPx}px`;
+  el.style.width = `${colW}px`;
+  let top = GAP;
+  col.forEach((l, j) => {
+    // Flat index into currentLoaded so drag-to-reorder maps back to the pool.
+    const t = tile(l, startIdx + j, true);
+    const hgt = colW / l.aspect;
+    Object.assign(t.style, { position: 'absolute', left: '0', top: `${top}px`, width: `${colW}px`, height: `${hgt}px` });
+    el.appendChild(t);
+    top += hgt + GAP;
+  });
+  return el;
+}
+
+// The strip holds every column once, plus a copy of the leading columns at the
+// end so a constant leftward drift wraps seamlessly (translate by one full set
+// width lands exactly on the copy).
+function buildStrip(): HTMLElement {
+  const strip = h('div', { class: 'pins-strip' });
+  const { cols, colW, step } = colMetrics();
+  const n = scrollCols.length;
+  const starts: number[] = []; // flat pool index each column begins at
+  let acc = 0;
+  for (const col of scrollCols) {
+    starts.push(acc);
+    acc += col.length;
+  }
+  const total = n + Math.min(cols + 1, n); // duplicate the leading columns
+  for (let k = 0; k < total; k++) {
+    const idx = k % n;
+    strip.appendChild(columnDom(scrollCols[idx], k * step, colW, starts[idx]));
+  }
+  return strip;
+}
+
+// Constant, very slow leftward drift; loops forever with no visible seam.
+function startPanorama(strip: HTMLElement, secondsPerColumn: number): Animation {
+  const { step } = colMetrics();
+  const setWidth = scrollCols.length * step;
+  return strip.animate(
+    [{ transform: 'translateX(0)' }, { transform: `translateX(${-setWidth}px)` }],
+    { duration: scrollCols.length * secondsPerColumn * 1000, iterations: Infinity, easing: 'linear' },
+  );
+}
+
 // Re-justify the wall in place from the current live order (no reload/preload).
 function rebuildWall(): void {
   const old = host.querySelector('.pins-wall');
   if (old) old.replaceWith(buildWallDom(currentLoaded));
+}
+
+// Re-pack the panorama columns from the current order, swapping children into
+// the EXISTING strip so its (paused) drift animation and transform survive.
+// Used during a drag so the layout previews the drop live and dims the source.
+function rebuildStripLive(): void {
+  const strip = host.querySelector('.pins-strip');
+  if (!strip) return;
+  const { colW } = colMetrics();
+  scrollCols = buildColumns(currentLoaded, colW);
+  strip.replaceChildren(...buildStrip().children);
 }
 
 async function render(): Promise<void> {
@@ -201,9 +298,34 @@ async function render(): Promise<void> {
     return;
   }
 
+  const sr = p.screenRotation ?? 'off';
+
+  // Panorama scroll: pack into columns and slide one column at a time. Pins stay
+  // draggable — the drift pauses while dragging (see startDrag/endDrag).
+  if (sr === 'scroll') {
+    const { cols, colW } = colMetrics();
+    scrollCols = buildColumns(loaded, colW);
+    if (scrollCols.length > cols) {
+      panoramaMode = true;
+      currentLoaded = loaded; // flat pool; tile data-index maps into this
+      editableBoardId =
+        p.mode === 'board' ? (activeBoard ? activeBoard.id : null) : p.boards.length === 1 ? p.boards[0].id : null;
+      const strip = buildStrip();
+      const kids: HTMLElement[] = [strip];
+      if (p.mode === 'board' && p.boards.length > 1 && activeBoard) kids.push(boardSwitcher(activeBoard));
+      host.replaceChildren(...kids);
+      const secs = p.screenScrollSeconds && p.screenScrollSeconds > 0 ? p.screenScrollSeconds : 20;
+      panoramaAnim = startPanorama(strip, secs);
+      return;
+    }
+    // pool fits on one screen → fall through to the static wall
+  }
+  panoramaMode = false;
+  panoramaAnim = undefined;
+
   // Screen rotation: when the pool overflows the viewport, advance a whole
   // "page" of pins each cycle so every pin gets screen time over time.
-  const shown = screenRotate(loaded, p.screenRotation ?? 'off', p.screenIntervalMinutes);
+  const shown = screenRotate(loaded, sr, p.screenIntervalMinutes);
 
   currentLoaded = shown;
   // Rearranging writes a flat order back to one board. Board mode → active board;
@@ -235,8 +357,8 @@ async function render(): Promise<void> {
 
 // Rotate the loaded pool by whole pages so a different screenful shows each
 // cycle. 'off' or a pool that already fits → returned unchanged.
-function screenRotate(loaded: Loaded[], rotation: PinRotation, intervalMin: number | undefined): Loaded[] {
-  if (rotation === 'off') return loaded;
+function screenRotate(loaded: Loaded[], rotation: PinScreenRotation, intervalMin: number | undefined): Loaded[] {
+  if (rotation === 'off' || rotation === 'scroll') return loaded;
   const page = pageCapacity(loaded);
   if (loaded.length <= page) return loaded;
   const pages = Math.ceil(loaded.length / page);
@@ -323,30 +445,42 @@ function positionGhost(x: number, y: number): void {
   ghost.style.top = `${y - dragOffY}px`;
 }
 
-// Grab immediately on press (same feel as the old edit mode). The ghost/dim
-// appear at once; if the pointer never moves a pin, endDrag leaves the order
-// untouched and the trailing click opens the pin's link.
-function startDrag(e: PointerEvent, idx: number): void {
-  if (e.button !== 0) return;
-  e.preventDefault();
+// Start dragging tile `idx` from screen point (cx, cy). Works even when the pin
+// is under the clock/todo/quote overlays — the ghost + placeholder appear at
+// once and onDragMove hit-tests tile rects directly.
+function beginDragAt(idx: number, cx: number, cy: number): void {
+  if (idx < 0 || !currentLoaded[idx]) return;
   draggingIdx = idx;
   dragMoved = false;
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-  dragOffX = e.clientX - rect.left;
-  dragOffY = e.clientY - rect.top;
+  const el = host.querySelector<HTMLElement>(`.pin-item[data-index="${idx}"]`);
+  const rect = el?.getBoundingClientRect();
+  const w = rect ? rect.width : 200;
+  const ht = rect ? rect.height : 200;
+  dragOffX = rect ? cx - rect.left : w / 2;
+  dragOffY = rect ? cy - rect.top : ht / 2;
 
   const gi = h('img', { alt: '' }) as HTMLImageElement;
   gi.draggable = false;
   gi.src = currentLoaded[idx].pin.imageUrl;
   ghost = h('div', { class: 'pin-ghost' }, gi);
-  ghost.style.width = `${rect.width}px`;
-  ghost.style.height = `${rect.height}px`;
-  positionGhost(e.clientX, e.clientY);
+  ghost.style.width = `${w}px`;
+  ghost.style.height = `${ht}px`;
+  positionGhost(cx, cy);
   document.body.appendChild(ghost);
 
-  rebuildWall(); // mark the source tile as dragging (dimmed placeholder)
+  // Mark the source tile as dragging (dimmed placeholder).
+  if (panoramaMode) rebuildStripLive();
+  else rebuildWall();
   window.addEventListener('pointermove', onDragMove);
   window.addEventListener('pointerup', endDrag, { once: true });
+}
+
+// Direct press on a pin → grab immediately.
+function startDrag(e: PointerEvent, idx: number): void {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  if (panoramaMode) panoramaAnim?.pause(); // freeze the drift while rearranging
+  beginDragAt(idx, e.clientX, e.clientY);
 }
 
 function onDragMove(e: PointerEvent): void {
@@ -362,19 +496,33 @@ function onDragMove(e: PointerEvent): void {
     moveItem(currentLoaded, draggingIdx, ti);
     draggingIdx = ti;
     dragMoved = true;
-    rebuildWall(); // re-justify with the new order
+    // Re-justify live so the drop position previews as you move.
+    if (panoramaMode) rebuildStripLive();
+    else rebuildWall();
   });
 }
 
 function endDrag(): void {
   window.removeEventListener('pointermove', onDragMove);
+  if (ghost) {
+    ghost.remove();
+    ghost = null;
+  }
+
   if (rebuildRaf) {
     cancelAnimationFrame(rebuildRaf);
     rebuildRaf = 0;
   }
-  if (ghost) {
-    ghost.remove();
-    ghost = null;
+
+  // Panorama: order was re-packed live during the drag. Persist if it changed
+  // (re-render restarts the drift); otherwise resume the paused drift.
+  if (panoramaMode) {
+    const moved = dragMoved;
+    draggingIdx = -1;
+    dragMoved = false;
+    if (moved) persistOrder();
+    else panoramaAnim?.play();
+    return;
   }
   const moved = dragMoved;
   draggingIdx = -1;
@@ -450,8 +598,8 @@ const schema: SettingsField[] = [
     key: 'pins.screenRotation',
     label: 'Rotate pins on screen',
     type: 'select',
-    options: ROTATION_OPTS,
-    help: 'When a board (or the pooled set) has more pins than fit on screen, cycle through them.',
+    options: [...ROTATION_OPTS, { value: 'scroll', label: 'Panorama scroll' }],
+    help: 'When a board (or the pooled set) has more pins than fit on screen, cycle through them. Panorama scroll slides one column at a time.',
   },
   {
     key: 'pins.screenIntervalMinutes',
@@ -459,6 +607,13 @@ const schema: SettingsField[] = [
     type: 'number',
     min: 1,
     showIf: (s) => s.pins.screenRotation === 'interval',
+  },
+  {
+    key: 'pins.screenScrollSeconds',
+    label: 'Scroll speed (seconds per column)',
+    type: 'number',
+    min: 1,
+    showIf: (s) => s.pins.screenRotation === 'scroll',
   },
 ];
 

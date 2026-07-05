@@ -32,21 +32,36 @@ async function filesToPins(files: FileList | File[] | null | undefined): Promise
 // image or URL, or add URLs by hand. Writes the whole Pin[] back via onChange.
 function pinEditor(value: Pin[], onChange: (pins: Pin[]) => void): HTMLElement {
   const pins = value ?? [];
+  let dragFrom = -1; // thumbnail drag-to-reorder source index
   const grid = h(
     'div',
     { class: 'pin-edit-grid' },
-    ...pins.map((p, i) =>
-      h(
+    ...pins.map((p, i) => {
+      const thumb = h(
         'div',
-        { class: 'pin-edit-thumb' },
+        { class: 'pin-edit-thumb', title: 'Drag to reorder' },
         h('img', { src: p.imageUrl, alt: '', loading: 'lazy' }),
         h(
           'button',
           { class: 'pin-edit-del', title: 'Remove', onClick: () => onChange(pins.filter((_, j) => j !== i)) },
           '×',
         ),
-      ),
-    ),
+      );
+      thumb.draggable = true;
+      thumb.addEventListener('dragstart', () => {
+        dragFrom = i;
+      });
+      thumb.addEventListener('dragover', (e) => e.preventDefault());
+      thumb.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (dragFrom < 0 || dragFrom === i) return;
+        const next = pins.slice();
+        const [moved] = next.splice(dragFrom, 1);
+        next.splice(i, 0, moved);
+        onChange(next);
+      });
+      return thumb;
+    }),
     pins.length ? null : h('span', { class: 'pin-edit-empty' }, 'No pins yet'),
   );
 

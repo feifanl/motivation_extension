@@ -232,14 +232,19 @@ function buildStrip(): HTMLElement {
   return strip;
 }
 
-// Constant, very slow leftward drift; loops forever with no visible seam.
+// Constant, very slow leftward drift; loops forever with no visible seam. The
+// phase is tied to wall-clock time (currentTime = now mod loop), so reopening
+// the tab resumes where the drift would be — it never resets to the start.
 function startPanorama(strip: HTMLElement, secondsPerColumn: number): Animation {
   const { step } = colMetrics();
   const setWidth = scrollCols.length * step;
-  return strip.animate(
+  const duration = scrollCols.length * secondsPerColumn * 1000;
+  const anim = strip.animate(
     [{ transform: 'translateX(0)' }, { transform: `translateX(${-setWidth}px)` }],
-    { duration: scrollCols.length * secondsPerColumn * 1000, iterations: Infinity, easing: 'linear' },
+    { duration, iterations: Infinity, easing: 'linear' },
   );
+  anim.currentTime = Date.now() % duration;
+  return anim;
 }
 
 // Re-justify the wall in place from the current live order (no reload/preload).

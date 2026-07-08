@@ -420,7 +420,6 @@ function rebuild(): void {
       );
     }
     const shine = justCompletedId === t.id && t.done;
-    const grip = h('span', { class: 'todo-grip', title: 'Drag to reorder', 'aria-hidden': 'true' }, '⠿');
     const row = h(
       'div',
       {
@@ -453,7 +452,6 @@ function rebuild(): void {
           dropOnItem(t.id, after);
         },
       },
-      grip,
       check,
       text,
       meta,

@@ -84,7 +84,10 @@ function syncCursorToBoard(): void {
   const bid = t?.trelloBoardId ?? '';
   if (cursorBoardId !== bid) {
     cursorBoardId = bid;
-    const idx = boardLists.findIndex((l) => l.id === t?.trelloListId);
+    // Restore the last-shown list across sessions (syncedListId persists), then
+    // fall back to the configured start list, then the first list.
+    let idx = boardLists.findIndex((l) => l.id === state.syncedListId);
+    if (idx < 0) idx = boardLists.findIndex((l) => l.id === t?.trelloListId);
     listCursor = idx >= 0 ? idx : 0;
   }
   listCursor = clamp(listCursor, 0, Math.max(0, boardLists.length - 1));

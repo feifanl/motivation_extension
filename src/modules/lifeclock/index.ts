@@ -17,8 +17,7 @@ let moveT: ReturnType<typeof setTimeout> | undefined;
 let onKey: ((e: KeyboardEvent) => void) | undefined;
 let onResize: (() => void) | undefined;
 let unsub: (() => void) | undefined;
-let wheelLock = 0; // last wheel-event time (for gap-based accumulator reset)
-let wheelAcc = 0; // accumulated wheel delta toward the next view step
+let lastWheelStep = 0; // time of the last wheel-driven view change (cooldown gate)
 let lastMin = false;
 
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -148,24 +147,21 @@ function buildStage(): void {
   stage = h('div', { class: 'lc-stage' }, track);
   moduleHost.appendChild(h('div', { class: 'lc-root ui-enter' }, stage));
 
-  // Wheel accumulator: sum deltas and step once per STEP_DELTA. A gap resets the
-  // accumulator so a new gesture starts fresh. This lets repeated scrolling keep
-  // advancing (one step per mouse notch / firm swipe) without a single flick's
-  // momentum over-shooting.
-  const STEP_DELTA = 90; // accumulated |deltaY| per view change
-  const GAP = 220; // ms with no wheel → new gesture
+  // One view change per gesture, gated by a cooldown. Trackpads fire a dense
+  // stream of small deltas (and momentum inertia after the finger lifts), so
+  // magnitude-based accumulation over-shoots; a time gate steps at most once per
+  // COOLDOWN regardless of how hard the swipe or how long the momentum tail.
+  const COOLDOWN = 350; // ms between wheel-driven view changes
+  const MIN_DELTA = 8; // ignore sub-notch jitter
   stage.addEventListener(
     'wheel',
     (e) => {
       e.preventDefault();
+      if (Math.abs(e.deltaY) < MIN_DELTA) return;
       const t = Date.now();
-      if (t - wheelLock > GAP) wheelAcc = 0;
-      wheelLock = t;
-      wheelAcc += e.deltaY;
-      while (Math.abs(wheelAcc) >= STEP_DELTA) {
-        step(wheelAcc < 0 ? -1 : 1);
-        wheelAcc -= Math.sign(wheelAcc) * STEP_DELTA;
-      }
+      if (t - lastWheelStep < COOLDOWN) return;
+      lastWheelStep = t;
+      step(e.deltaY < 0 ? -1 : 1);
     },
     { passive: false },
   );

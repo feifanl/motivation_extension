@@ -12,6 +12,32 @@ body {
 
 #app { min-height: 100vh; position: relative; }
 
+/* Lightweight themed scrollbars everywhere (sidebar, notes board, settings, textareas). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .slot-background { position: fixed; inset: 0; z-index: 0; }
 
 /* Centered content column. Only occupies the middle band so the pins wall

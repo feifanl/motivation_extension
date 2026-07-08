@@ -34,6 +34,8 @@
   --glass-blur: 20px;
   /* time chunks: visible on glass in either theme */
   --chunk-future: rgb(255 255 255 / .14);
+  --scrollbar-thumb: rgb(255 255 255 / .18);
+  --scrollbar-thumb-hover: rgb(255 255 255 / .32);
 }
 :root[data-theme='light'] {
   --bg: #f6f8fa; --surface: #ffffff; --surface-2: #eaeef2;
@@ -47,6 +49,8 @@
   --glass-blur: 20px;
   /* time chunks: visible on glass in either theme */
   --chunk-future: rgb(0 0 0 / .16);
+  --scrollbar-thumb: rgb(0 0 0 / .22);
+  --scrollbar-thumb-hover: rgb(0 0 0 / .38);
 }
 /* Glass off: flip every surface back to flat, opaque tokens. The opaque bg hides
    whatever the (now zero) backdrop-filter does, so no per-surface edits needed. */

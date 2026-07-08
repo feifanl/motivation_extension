@@ -12,11 +12,11 @@ import {
   type TodoPatch,
 } from './store';
 import {
-  trelloClose,
   trelloCreate,
   trelloDelete,
   trelloListsForBoard,
   trelloPull,
+  trelloSetDone,
   weekdayListId,
   type TrelloConfig,
 } from './trello';
@@ -80,11 +80,23 @@ async function syncFromTrello(): Promise<void> {
     return;
   }
   const known = new Set(state.items.filter((i) => i.trelloCardId).map((i) => i.trelloCardId));
+  // Trello's dueComplete per card — source of truth for checked state on pull.
+  const doneByCard = new Map(cards.map((c) => [c.trelloCardId, c.done]));
   let changed = false;
   for (const card of cards) {
     if (!known.has(card.trelloCardId)) {
       state.items.push(card);
       changed = true;
+    }
+  }
+  // Reflect Trello check/uncheck onto already-known items.
+  for (const item of state.items) {
+    if (item.trelloCardId && doneByCard.has(item.trelloCardId)) {
+      const remote = doneByCard.get(item.trelloCardId)!;
+      if (item.done !== remote) {
+        item.done = remote;
+        changed = true;
+      }
     }
   }
   for (const item of state.items) {
@@ -220,7 +232,7 @@ function rebuild(): void {
         commit(toggleTodo(state, t.id)).then(() => {
           const cfg = trelloCfg();
           const cur = state.items.find((i) => i.id === t.id);
-          if (cfg && cur?.done && cur.trelloCardId) trelloClose(cfg, cur.trelloCardId);
+          if (cfg && cur?.trelloCardId) trelloSetDone(cfg, cur.trelloCardId, cur.done);
         });
       },
     });

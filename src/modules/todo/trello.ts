@@ -24,6 +24,7 @@ interface TrelloCard {
   desc?: string;
   shortUrl?: string;
   labels?: TrelloLabel[];
+  dueComplete?: boolean; // Trello's card-level "done" checkmark (needs a due date to toggle in-app)
 }
 
 interface TrelloList {
@@ -82,7 +83,7 @@ export async function trelloPull(cfg: TrelloConfig): Promise<Todo[] | null> {
     return cards.map((c) => ({
       id: crypto.randomUUID(),
       text: c.name,
-      done: false,
+      done: c.dueComplete === true,
       priority: priorityFromLabels(c.labels),
       createdAt: Date.now(),
       desc: c.desc || undefined,
@@ -111,10 +112,15 @@ export async function trelloCreate(cfg: TrelloConfig, todo: Todo): Promise<strin
   }
 }
 
-// Archive (check off) a card. Failures are swallowed.
-export async function trelloClose(cfg: TrelloConfig, cardId: string): Promise<void> {
+// Set a card's done state via dueComplete (Trello's card-level checkmark), so
+// checking/unchecking syncs both ways. Failures are swallowed.
+export async function trelloSetDone(
+  cfg: TrelloConfig,
+  cardId: string,
+  done: boolean,
+): Promise<void> {
   try {
-    await fetch(`${BASE}/cards/${cardId}?closed=true&${auth(cfg)}`, {
+    await fetch(`${BASE}/cards/${cardId}?dueComplete=${done}&${auth(cfg)}`, {
       method: 'PUT',
       signal: AbortSignal.timeout(TIMEOUT),
     });

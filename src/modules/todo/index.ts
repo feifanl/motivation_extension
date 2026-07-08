@@ -1,6 +1,6 @@
 import './todo.css';
 import type { DashboardModule, ModuleContext, Priority, TodoState } from '../../core/types';
-import { h, animateOut } from '../../core/dom';
+import { h, animateOut, clamp } from '../../core/dom';
 import {
   addTodo,
   clearTodos,
@@ -36,6 +36,13 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matc
 // Weekday list resolved from the board name-match; refreshed each sync.
 // Used by the synchronous callers (submit/toggle/remove) so they hit today's list.
 let weekdayList: string | null = null;
+// The board's open lists (both modes; empty if no board configured). Refreshed
+// each sync. Powers the manual ‹ › navigation in non-weekday mode.
+let boardLists: { id: string; name: string }[] = [];
+// Cursor into boardLists for manual navigation, and the board it's valid for
+// (so switching boards re-homes the cursor instead of keeping a stale index).
+let listCursor = 0;
+let cursorBoardId: string | null = null;
 
 const PRIO_RANK: Record<Priority, number> = { high: 0, med: 1, low: 2 };
 
@@ -43,7 +50,9 @@ const PRIO_RANK: Record<Priority, number> = { high: 0, med: 1, low: 2 };
 // one, else the fixed list ID. Empty string when neither is available.
 function effectiveListId(): string {
   const t = ctx?.settings.todo;
-  if (t?.trelloAutoWeekday && weekdayList) return weekdayList;
+  if (t?.trelloAutoWeekday) return weekdayList ?? t?.trelloListId ?? '';
+  // Manual mode: the arrow-navigated board list wins over the fixed list ID.
+  if (boardLists.length) return boardLists[listCursor]?.id ?? t?.trelloListId ?? '';
   return t?.trelloListId ?? '';
 }
 
@@ -57,30 +66,77 @@ function trelloCfg(): TrelloConfig | null {
   return { key: t.trelloKey, token: t.trelloToken, listId };
 }
 
-// When auto-weekday is on, scan the board and match today's weekday to a list
-// name. Sets weekdayList (null if no board/match). No-op when auto-mode is off.
-async function resolveWeekdayList(): Promise<void> {
+// Fetch the board's open lists into boardLists (empty on no board / failure).
+// Feeds both the weekday match and the manual ‹ › navigation.
+async function resolveBoardLists(): Promise<void> {
   const t = ctx?.settings.todo;
-  if (!t?.trelloEnabled || !t.trelloAutoWeekday || !t.trelloKey || !t.trelloToken || !t.trelloBoardId) {
+  if (!t?.trelloEnabled || !t.trelloKey || !t.trelloToken || !t.trelloBoardId) {
+    boardLists = [];
+    return;
+  }
+  boardLists = (await trelloListsForBoard(t.trelloKey, t.trelloToken, t.trelloBoardId)) ?? [];
+}
+
+// Keep the manual cursor sane: re-home it onto the configured list when the
+// board changes, and always clamp it inside the current list count.
+function syncCursorToBoard(): void {
+  const t = ctx?.settings.todo;
+  const bid = t?.trelloBoardId ?? '';
+  if (cursorBoardId !== bid) {
+    cursorBoardId = bid;
+    const idx = boardLists.findIndex((l) => l.id === t?.trelloListId);
+    listCursor = idx >= 0 ? idx : 0;
+  }
+  listCursor = clamp(listCursor, 0, Math.max(0, boardLists.length - 1));
+}
+
+// When auto-weekday is on, match today's weekday against the board's list names.
+// Sets weekdayList (null if no board/match). No-op when auto-mode is off.
+function resolveWeekdayList(): void {
+  const t = ctx?.settings.todo;
+  if (!t?.trelloEnabled || !t.trelloAutoWeekday) {
     weekdayList = null;
     return;
   }
-  const lists = await trelloListsForBoard(t.trelloKey, t.trelloToken, t.trelloBoardId);
-  weekdayList = lists ? weekdayListId(lists) : null;
+  weekdayList = boardLists.length ? weekdayListId(boardLists) : null;
+}
+
+// Step the manual cursor to the prev/next board list; the resulting list switch
+// rewrites the sidebar (see syncFromTrello). No-op at the ends / with no board.
+function navList(dir: -1 | 1): void {
+  if (!boardLists.length) return;
+  const next = clamp(listCursor + dir, 0, boardLists.length - 1);
+  if (next === listCursor) return;
+  listCursor = next;
+  syncFromTrello();
 }
 
 // Pull server cards, merge in unseen ones, push local-only ones up. Never
 // blocks first paint (called post-render) and never throws.
 async function syncFromTrello(): Promise<void> {
-  await resolveWeekdayList(); // pick today's list before building the config
+  await resolveBoardLists(); // board's lists first — feeds weekday + manual nav
+  syncCursorToBoard(); // position the manual cursor for this board
+  resolveWeekdayList(); // pick today's list before building the config
   const cfg = trelloCfg();
   if (!cfg) {
     syncStatus = 'off';
     return;
   }
+  const targetList = cfg.listId;
+  // Moving to a different list — a new weekday in auto mode, or an arrow press in
+  // manual mode — rewrites the sidebar to mirror that list instead of appending.
+  const isSwitch = state.syncedListId != null && state.syncedListId !== targetList;
   const cards = await trelloPull(cfg);
   if (cards === null) {
     syncStatus = 'offline';
+    rebuild();
+    return;
+  }
+  if (isSwitch) {
+    state.items = cards;
+    state.syncedListId = targetList;
+    await saveTodos(state);
+    syncStatus = 'synced';
     rebuild();
     return;
   }
@@ -112,6 +168,11 @@ async function syncFromTrello(): Promise<void> {
         changed = true;
       }
     }
+  }
+  // Record the list these items now mirror, so the next switch is detected.
+  if (state.syncedListId !== targetList) {
+    state.syncedListId = targetList;
+    changed = true;
   }
   if (changed) await saveTodos(state);
   syncStatus = 'synced';
@@ -207,6 +268,29 @@ function rebuild(): void {
     ),
   );
   const header = h('div', { class: 'todo-head' }, left, headActions);
+
+  // Manual mode with a board: ‹ › to page through the board's lists.
+  const t = ctx.settings.todo;
+  let listNav: HTMLElement | null = null;
+  if (t.trelloEnabled && !t.trelloAutoWeekday && boardLists.length > 0) {
+    const idx = clamp(listCursor, 0, boardLists.length - 1);
+    const cur = boardLists[idx];
+    listNav = h(
+      'div',
+      { class: 'todo-listnav' },
+      h(
+        'button',
+        { class: 'todo-nav', disabled: idx <= 0, title: 'Previous list', 'aria-label': 'Previous list', onClick: () => navList(-1) },
+        '‹',
+      ),
+      h('span', { class: 'todo-listname', title: cur?.name ?? '' }, cur?.name ?? ''),
+      h(
+        'button',
+        { class: 'todo-nav', disabled: idx >= boardLists.length - 1, title: 'Next list', 'aria-label': 'Next list', onClick: () => navList(1) },
+        '›',
+      ),
+    );
+  }
 
   const input = h('input', {
     class: 'todo-input',
@@ -354,7 +438,7 @@ function rebuild(): void {
     }
   }
 
-  const cardEl = h('div', { class: 'card todo' }, header, addRow, list);
+  const cardEl = h('div', { class: 'card todo' }, header, listNav, addRow, list);
   if (animateShow) {
     cardEl.classList.add('ui-enter');
     animateShow = false;
@@ -417,8 +501,8 @@ export const todo: DashboardModule = {
       label: 'Trello board ID',
       type: 'text',
       placeholder: 'board id',
-      showIf: (s) => s.todo.trelloEnabled && s.todo.trelloAutoWeekday,
-      help: "Open the board, add .json to its URL — the top-level 'id' is the board ID.",
+      showIf: (s) => s.todo.trelloEnabled,
+      help: "Open the board, add .json to its URL — the top-level 'id' is the board ID. Powers weekday matching and the ‹ › list arrows.",
     },
     {
       key: 'todo.trelloListId',
@@ -426,7 +510,7 @@ export const todo: DashboardModule = {
       type: 'text',
       placeholder: 'list id',
       showIf: (s) => s.todo.trelloEnabled && !s.todo.trelloAutoWeekday,
-      help: "Open the list's 'Copy link' — the list ID is the last path segment. Used as a fallback when no weekday list matches.",
+      help: "Starting list for the ‹ › arrows (and fallback when no weekday matches). Open the list's 'Copy link' — the ID is the last path segment.",
     },
   ],
 

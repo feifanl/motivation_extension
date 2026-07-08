@@ -157,6 +157,7 @@ export interface Todo {
 
 export interface TodoState {
   items: Todo[];
+  syncedListId?: string; // Trello list these items currently mirror; a change triggers a rewrite
 }
 
 // ---------- Quote (bundled quotes.json entries) ----------

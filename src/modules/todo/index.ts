@@ -28,6 +28,11 @@ let dateEl: HTMLElement;
 let expandedId: string | null = null;
 let dateTick: ReturnType<typeof setInterval> | undefined;
 let syncStatus: 'off' | 'synced' | 'offline' = 'off';
+// Row to play the shine sweep on (the item just checked off), consumed once per rebuild.
+let justCompletedId: string | null = null;
+// Last-known "every item done" state — celebration fires only on the rising edge.
+let allDone = false;
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 // Weekday list resolved from the board name-match; refreshed each sync.
 // Used by the synchronous callers (submit/toggle/remove) so they hit today's list.
 let weekdayList: string | null = null;
@@ -144,6 +149,27 @@ function update(id: string, patch: TodoPatch): void {
   commit(updateTodo(state, id, patch));
 }
 
+// Confetti burst + pill message over the card when every task is done.
+function celebrate(card: HTMLElement): void {
+  const overlay = h('div', { class: 'todo-celebrate' });
+  overlay.appendChild(h('div', { class: 'msg' }, 'All done! 🎉'));
+  const colors = ['#238636', '#2ea043', '#3fb950', '#d29922', '#58a6ff'];
+  for (let i = 0; i < 16; i++) {
+    overlay.appendChild(
+      h('span', {
+        class: 'todo-confetti',
+        style: {
+          left: `${Math.random() * 100}%`,
+          background: colors[i % colors.length],
+          animationDelay: `${Math.random() * 0.25}s`,
+        },
+      }),
+    );
+  }
+  card.appendChild(overlay);
+  setTimeout(() => overlay.remove(), 2000);
+}
+
 function rebuild(): void {
   // Collapsed → just a handle to bring the sidebar back.
   if (ctx.settings.ui.todoHidden) {
@@ -229,6 +255,7 @@ function rebuild(): void {
       type: 'checkbox',
       checked: t.done,
       onChange: () => {
+        if (!t.done && !reducedMotion) justCompletedId = t.id; // becoming done → shine
         commit(toggleTodo(state, t.id)).then(() => {
           const cfg = trelloCfg();
           const cur = state.items.find((i) => i.id === t.id);
@@ -259,9 +286,10 @@ function rebuild(): void {
         ),
       );
     }
+    const shine = justCompletedId === t.id && t.done;
     const row = h(
       'div',
-      { class: `todo-item${expanded ? ' expanded' : ''}` },
+      { class: `todo-item${expanded ? ' expanded' : ''}${shine ? ' todo-shine' : ''}` },
       check,
       text,
       meta,
@@ -331,6 +359,14 @@ function rebuild(): void {
     cardEl.classList.add('ui-enter');
     animateShow = false;
   }
+
+  justCompletedId = null; // shine is one-shot; consume it after this build
+
+  // Fire the celebration only when crossing into all-done (non-empty list).
+  const everyDone = state.items.length > 0 && state.items.every((i) => i.done);
+  if (everyDone && !allDone && !reducedMotion) celebrate(cardEl);
+  allDone = everyDone;
+
   host.replaceChildren(cardEl);
 }
 

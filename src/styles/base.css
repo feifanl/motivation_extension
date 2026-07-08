@@ -88,7 +88,9 @@ body {
   top: var(--s-5);
   left: var(--s-5);
   width: var(--sidebar-w);
-  max-height: calc(100vh - var(--s-6));
+  /* stop the list short of the bottom-left corner controls (notes + settings)
+     so its text never slides under them */
+  max-height: calc(100vh - var(--s-5) - var(--corner-reserve));
   overflow-y: auto;
   z-index: 3;
   pointer-events: auto; /* re-enable: parent .layout is pointer-events:none */

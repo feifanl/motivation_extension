@@ -150,6 +150,7 @@ export interface Todo {
   done: boolean;
   priority: Priority; // default "med"
   createdAt: number; // epoch ms
+  pos: number; // manual sort order (ascending); mirrors Trello's card pos when synced
   desc?: string; // free-text description (Trello-style)
   link?: string; // single URL, opened in a new tab
   trelloCardId?: string; // present iff synced

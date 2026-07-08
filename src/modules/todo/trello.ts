@@ -25,6 +25,7 @@ interface TrelloCard {
   shortUrl?: string;
   labels?: TrelloLabel[];
   dueComplete?: boolean; // Trello's card-level "done" checkmark (needs a due date to toggle in-app)
+  pos?: number; // Trello's fractional card order within its list
 }
 
 interface TrelloList {
@@ -80,12 +81,13 @@ export async function trelloPull(cfg: TrelloConfig): Promise<Todo[] | null> {
     });
     if (!res.ok) return null;
     const cards = (await res.json()) as TrelloCard[];
-    return cards.map((c) => ({
+    return cards.map((c, i) => ({
       id: crypto.randomUUID(),
       text: c.name,
       done: c.dueComplete === true,
       priority: priorityFromLabels(c.labels),
       createdAt: Date.now(),
+      pos: typeof c.pos === 'number' ? c.pos : i + 1,
       desc: c.desc || undefined,
       link: c.shortUrl || undefined,
       trelloCardId: c.id,
@@ -126,6 +128,23 @@ export async function trelloSetDone(
     });
   } catch {
     /* offline: local copy already updated */
+  }
+}
+
+// Reposition a card via its fractional pos. Local order already updated; a
+// failure just means Trello keeps the old order until the next successful move.
+export async function trelloSetPos(
+  cfg: TrelloConfig,
+  cardId: string,
+  pos: number,
+): Promise<void> {
+  try {
+    await fetch(`${BASE}/cards/${cardId}?pos=${pos}&${auth(cfg)}`, {
+      method: 'PUT',
+      signal: AbortSignal.timeout(TIMEOUT),
+    });
+  } catch {
+    /* offline: local order already updated */
   }
 }
 

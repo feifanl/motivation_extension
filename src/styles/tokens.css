@@ -15,6 +15,8 @@
   /* centered content column width; pins wall reserves this band in the middle */
   --content-w: 560px;
   --sidebar-w: 300px;
+  /* bottom band the sidebar must clear so it never covers the corner controls */
+  --corner-reserve: 84px;
   /* vertical band reserved at the bottom for the fixed quote card */
   --quote-reserve: 128px;
   /* color — semantic, theme-independent */

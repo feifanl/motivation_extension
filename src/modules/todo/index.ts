@@ -6,9 +6,11 @@ import {
   clearTodos,
   loadTodos,
   removeTodo,
+  reorderTodo,
   saveTodos,
   toggleTodo,
   updateTodo,
+  POS_STEP,
   type TodoPatch,
 } from './store';
 import {
@@ -17,6 +19,7 @@ import {
   trelloListsForBoard,
   trelloPull,
   trelloSetDone,
+  trelloSetPos,
   weekdayListId,
   type TrelloConfig,
 } from './trello';
@@ -44,7 +47,8 @@ let boardLists: { id: string; name: string }[] = [];
 let listCursor = 0;
 let cursorBoardId: string | null = null;
 
-const PRIO_RANK: Record<Priority, number> = { high: 0, med: 1, low: 2 };
+// Item currently being dragged (HTML5 DnD), cleared on drop/dragend.
+let dragId: string | null = null;
 
 // The list all card ops target: today's weekday list when auto-mode resolved
 // one, else the fixed list ID. Empty string when neither is available.
@@ -144,8 +148,9 @@ async function syncFromTrello(): Promise<void> {
     return;
   }
   const known = new Set(state.items.filter((i) => i.trelloCardId).map((i) => i.trelloCardId));
-  // Trello's dueComplete per card — source of truth for checked state on pull.
+  // Trello per-card done + pos — source of truth for checked state and order.
   const doneByCard = new Map(cards.map((c) => [c.trelloCardId, c.done]));
+  const posByCard = new Map(cards.map((c) => [c.trelloCardId, c.pos]));
   let changed = false;
   for (const card of cards) {
     if (!known.has(card.trelloCardId)) {
@@ -153,12 +158,17 @@ async function syncFromTrello(): Promise<void> {
       changed = true;
     }
   }
-  // Reflect Trello check/uncheck onto already-known items.
+  // Reflect Trello check/uncheck and reordering onto already-known items.
   for (const item of state.items) {
     if (item.trelloCardId && doneByCard.has(item.trelloCardId)) {
       const remote = doneByCard.get(item.trelloCardId)!;
       if (item.done !== remote) {
         item.done = remote;
+        changed = true;
+      }
+      const remotePos = posByCard.get(item.trelloCardId)!;
+      if (item.pos !== remotePos) {
+        item.pos = remotePos;
         changed = true;
       }
     }
@@ -196,10 +206,46 @@ function dateLabel(): string {
   return `${weekday} · ${md}`;
 }
 
+// Manual order (Trello-style): pos ascending, createdAt as a stable tiebreak.
 function sortedItems(): TodoState['items'] {
-  return [...state.items].sort(
-    (a, b) => PRIO_RANK[a.priority] - PRIO_RANK[b.priority] || a.createdAt - b.createdAt,
-  );
+  return [...state.items].sort((a, b) => a.pos - b.pos || a.createdAt - b.createdAt);
+}
+
+// Midpoint pos for an item dropped between `before` and `after` (either absent
+// at the list ends). Mirrors Trello's fractional insert.
+function posBetween(before?: TodoState['items'][number], after?: TodoState['items'][number]): number {
+  if (before && after) return (before.pos + after.pos) / 2;
+  if (after) return after.pos / 2; // dropped at the top
+  if (before) return before.pos + POS_STEP; // dropped at the bottom
+  return POS_STEP;
+}
+
+// Below the row's vertical midpoint → drop after it, else before.
+function dropIsAfter(e: DragEvent, el: HTMLElement): boolean {
+  const r = el.getBoundingClientRect();
+  return e.clientY > r.top + r.height / 2;
+}
+
+// Strip the drop-position highlight from every row (drag ended / left).
+function clearDropMarks(): void {
+  host?.querySelectorAll('.todo-item').forEach((el) => el.classList.remove('drop-before', 'drop-after'));
+}
+
+// Reorder dragId relative to targetId, persist, and push the new pos to Trello.
+function dropOnItem(targetId: string, placeAfter: boolean): void {
+  if (!dragId || dragId === targetId) return;
+  const ordered = sortedItems().filter((i) => i.id !== dragId);
+  let idx = ordered.findIndex((i) => i.id === targetId);
+  if (idx < 0) return;
+  if (placeAfter) idx += 1;
+  const pos = posBetween(ordered[idx - 1], ordered[idx]);
+  const moved = dragId;
+  commit(reorderTodo(state, moved, pos)).then(() => {
+    const cfg = trelloCfg();
+    const cur = state.items.find((i) => i.id === moved);
+    if (cfg && cur?.trelloCardId) trelloSetPos(cfg, cur.trelloCardId, pos);
+  });
+  dragId = null;
 }
 
 async function commit(next: TodoState, refocus = false): Promise<void> {
@@ -374,9 +420,40 @@ function rebuild(): void {
       );
     }
     const shine = justCompletedId === t.id && t.done;
+    const grip = h('span', { class: 'todo-grip', title: 'Drag to reorder', 'aria-hidden': 'true' }, '⠿');
     const row = h(
       'div',
-      { class: `todo-item${expanded ? ' expanded' : ''}${shine ? ' todo-shine' : ''}` },
+      {
+        class: `todo-item${expanded ? ' expanded' : ''}${shine ? ' todo-shine' : ''}`,
+        draggable: 'true',
+        onDragstart: (e: DragEvent) => {
+          dragId = t.id;
+          row.classList.add('dragging');
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', t.id);
+          }
+        },
+        onDragend: () => {
+          dragId = null;
+          row.classList.remove('dragging');
+          clearDropMarks();
+        },
+        onDragover: (e: DragEvent) => {
+          if (!dragId || dragId === t.id) return;
+          e.preventDefault();
+          const after = dropIsAfter(e, row);
+          row.classList.toggle('drop-after', after);
+          row.classList.toggle('drop-before', !after);
+        },
+        onDragleave: () => row.classList.remove('drop-before', 'drop-after'),
+        onDrop: (e: DragEvent) => {
+          e.preventDefault();
+          const after = dropIsAfter(e, row);
+          dropOnItem(t.id, after);
+        },
+      },
+      grip,
       check,
       text,
       meta,

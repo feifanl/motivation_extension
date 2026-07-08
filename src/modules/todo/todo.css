@@ -1,8 +1,13 @@
 .todo {
   display: flex;
   flex-direction: column;
-  gap: var(--s-4);
+  gap: var(--s-3);
   position: relative; /* anchor for the all-done celebration overlay */
+}
+/* Compact, Trello-density card: tighter padding + smaller base text. */
+.card.todo {
+  padding: var(--s-3) var(--s-4);
+  font-size: 15px;
 }
 
 .todo-head {
@@ -18,7 +23,7 @@
 }
 .todo-date {
   font-family: var(--font-display);
-  font-size: var(--fs-lg);
+  font-size: var(--fs-md);
 }
 .todo-sync {
   width: 8px;
@@ -123,14 +128,42 @@
 .todo-item {
   display: flex;
   align-items: center;
-  gap: var(--s-3);
-  padding: var(--s-2) 0;
+  gap: var(--s-2);
+  padding: var(--s-1) 0;
   border-bottom: 1px solid var(--border);
   position: relative;
   overflow: hidden; /* clips the shine sweep */
 }
 .todo-item:last-child {
   border-bottom: none;
+}
+.todo-item.dragging {
+  opacity: 0.4;
+}
+/* insertion line shown while dragging over a row */
+.todo-item.drop-before {
+  box-shadow: inset 0 2px 0 var(--primary);
+}
+.todo-item.drop-after {
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+
+/* drag handle — dots, dim until row hover */
+.todo-grip {
+  flex: none;
+  cursor: grab;
+  color: var(--text-dim);
+  opacity: 0;
+  font-size: var(--fs-sm);
+  line-height: 1;
+  user-select: none;
+  transition: opacity var(--t-fast);
+}
+.todo-item:hover .todo-grip {
+  opacity: 0.6;
+}
+.todo-grip:active {
+  cursor: grabbing;
 }
 
 /* Trello-style rounded checkbox. Tick is a background SVG, not a pseudo-element:
@@ -142,9 +175,9 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  width: 20px;
-  height: 20px;
-  min-width: 20px; /* never let the flex row shrink it into an oval */
+  width: 18px;
+  height: 18px;
+  min-width: 18px; /* never let the flex row shrink it into an oval */
   aspect-ratio: 1;
   border: 2px solid var(--text-dim);
   border-radius: 50%;
@@ -255,8 +288,8 @@ a.todo-badge:hover {
 }
 .todo-dot {
   flex: none;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
 }
 .todo-dot.high {
@@ -270,10 +303,10 @@ a.todo-badge:hover {
 }
 .todo-x {
   flex: none;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   padding: 0;
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
   line-height: 1;
   color: var(--text-dim);
   background: transparent;

@@ -26,6 +26,42 @@ interface TrelloCard {
   labels?: TrelloLabel[];
 }
 
+interface TrelloList {
+  id: string;
+  name: string;
+}
+
+// Fetch open lists on a board → [{id, name}]. null on any failure.
+// key/token only — no listId needed to enumerate a board's lists.
+export async function trelloListsForBoard(
+  key: string,
+  token: string,
+  boardId: string,
+): Promise<TrelloList[] | null> {
+  try {
+    const q = `key=${encodeURIComponent(key)}&token=${encodeURIComponent(token)}`;
+    const res = await fetch(`${BASE}/boards/${boardId}/lists?filter=open&fields=name&${q}`, {
+      signal: AbortSignal.timeout(TIMEOUT),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as TrelloList[];
+  } catch {
+    return null;
+  }
+}
+
+// Pick the list whose name contains today's weekday (e.g. "Monday").
+// Case-insensitive substring so "Mon — deep work" still matches. null = no hit.
+export function weekdayListId(lists: TrelloList[], now = new Date()): string | null {
+  const day = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+  const short = day.slice(0, 3); // "mon" — matches abbreviated list names too
+  const hit = lists.find((l) => {
+    const n = l.name.toLowerCase();
+    return n.includes(day) || n.includes(short);
+  });
+  return hit?.id ?? null;
+}
+
 function priorityFromLabels(labels: TrelloLabel[] | undefined): Priority {
   for (const l of labels ?? []) {
     const n = (l.name ?? '').toLowerCase();

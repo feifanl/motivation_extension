@@ -15,7 +15,9 @@ import {
   trelloClose,
   trelloCreate,
   trelloDelete,
+  trelloListsForBoard,
   trelloPull,
+  weekdayListId,
   type TrelloConfig,
 } from './trello';
 
@@ -26,19 +28,46 @@ let dateEl: HTMLElement;
 let expandedId: string | null = null;
 let dateTick: ReturnType<typeof setInterval> | undefined;
 let syncStatus: 'off' | 'synced' | 'offline' = 'off';
+// Weekday list resolved from the board name-match; refreshed each sync.
+// Used by the synchronous callers (submit/toggle/remove) so they hit today's list.
+let weekdayList: string | null = null;
 
 const PRIO_RANK: Record<Priority, number> = { high: 0, med: 1, low: 2 };
 
-// Non-null only when Trello is enabled AND all creds are present.
+// The list all card ops target: today's weekday list when auto-mode resolved
+// one, else the fixed list ID. Empty string when neither is available.
+function effectiveListId(): string {
+  const t = ctx?.settings.todo;
+  if (t?.trelloAutoWeekday && weekdayList) return weekdayList;
+  return t?.trelloListId ?? '';
+}
+
+// Non-null only when Trello is enabled, creds are present, AND a target list
+// resolves (fixed ID, or a weekday match found on the board).
 function trelloCfg(): TrelloConfig | null {
   const t = ctx?.settings.todo;
-  if (!t?.trelloEnabled || !t.trelloKey || !t.trelloToken || !t.trelloListId) return null;
-  return { key: t.trelloKey, token: t.trelloToken, listId: t.trelloListId };
+  if (!t?.trelloEnabled || !t.trelloKey || !t.trelloToken) return null;
+  const listId = effectiveListId();
+  if (!listId) return null;
+  return { key: t.trelloKey, token: t.trelloToken, listId };
+}
+
+// When auto-weekday is on, scan the board and match today's weekday to a list
+// name. Sets weekdayList (null if no board/match). No-op when auto-mode is off.
+async function resolveWeekdayList(): Promise<void> {
+  const t = ctx?.settings.todo;
+  if (!t?.trelloEnabled || !t.trelloAutoWeekday || !t.trelloKey || !t.trelloToken || !t.trelloBoardId) {
+    weekdayList = null;
+    return;
+  }
+  const lists = await trelloListsForBoard(t.trelloKey, t.trelloToken, t.trelloBoardId);
+  weekdayList = lists ? weekdayListId(lists) : null;
 }
 
 // Pull server cards, merge in unseen ones, push local-only ones up. Never
 // blocks first paint (called post-render) and never throws.
 async function syncFromTrello(): Promise<void> {
+  await resolveWeekdayList(); // pick today's list before building the config
   const cfg = trelloCfg();
   if (!cfg) {
     syncStatus = 'off';
@@ -295,6 +324,21 @@ function rebuild(): void {
 
 let unsub: (() => void) | undefined;
 let lastCfgSig = '';
+
+// Signature over every Trello setting that affects which list we sync, so a
+// change to creds, board, list, or mode retriggers a sync. (trelloCfg() can't
+// be used here — it reads the async-resolved weekdayList, which lags settings.)
+function trelloSig(): string {
+  const t = ctx?.settings.todo;
+  return JSON.stringify([
+    t?.trelloEnabled,
+    t?.trelloKey,
+    t?.trelloToken,
+    t?.trelloListId,
+    t?.trelloBoardId,
+    t?.trelloAutoWeekday,
+  ]);
+}
 let lastHidden = false;
 let animateShow = false; // play enter animation when the card returns from hidden
 
@@ -314,21 +358,43 @@ export const todo: DashboardModule = {
     },
     { key: 'todo.trelloToken', label: 'Trello token', type: 'text', placeholder: 'token', showIf: (s) => s.todo.trelloEnabled },
     {
+      key: 'todo.trelloAutoWeekday',
+      label: 'Auto-pick list by weekday',
+      type: 'toggle',
+      showIf: (s) => s.todo.trelloEnabled,
+      help: 'Match today\'s weekday (e.g. "Monday") against the board\'s list names.',
+    },
+    {
+      key: 'todo.trelloBoardId',
+      label: 'Trello board ID',
+      type: 'text',
+      placeholder: 'board id',
+      showIf: (s) => s.todo.trelloEnabled && s.todo.trelloAutoWeekday,
+      help: "Open the board, add .json to its URL — the top-level 'id' is the board ID.",
+    },
+    {
       key: 'todo.trelloListId',
       label: 'Trello list ID',
       type: 'text',
       placeholder: 'list id',
-      showIf: (s) => s.todo.trelloEnabled,
-      help: "Open the list's 'Copy link' — the list ID is the last path segment.",
+      showIf: (s) => s.todo.trelloEnabled && !s.todo.trelloAutoWeekday,
+      help: "Open the list's 'Copy link' — the list ID is the last path segment. Used as a fallback when no weekday list matches.",
     },
   ],
 
   async init(c) {
     ctx = c;
     state = await loadTodos();
-    // Refresh the weekday/date label if the tab lives past midnight.
+    // Refresh the weekday/date label if the tab lives past midnight, and re-sync
+    // so auto-weekday follows the new day onto the next list.
+    let lastWeekday = new Date().getDay();
     dateTick = setInterval(() => {
       if (dateEl) dateEl.textContent = dateLabel();
+      const day = new Date().getDay();
+      if (day !== lastWeekday) {
+        lastWeekday = day;
+        if (ctx.settings.todo.trelloAutoWeekday) syncFromTrello();
+      }
     }, 60_000);
     lastHidden = c.settings.ui.todoHidden;
     // Re-sync when Trello config changes; rebuild when the hide toggle flips.
@@ -345,7 +411,7 @@ export const todo: DashboardModule = {
           }
         }
       }
-      const sig = JSON.stringify(trelloCfg());
+      const sig = trelloSig();
       if (sig !== lastCfgSig) {
         lastCfgSig = sig;
         syncFromTrello();
@@ -357,7 +423,7 @@ export const todo: DashboardModule = {
     host = el;
     rebuild();
     // Pull from Trello after first paint (never blocks render; 2 s abort inside).
-    lastCfgSig = JSON.stringify(trelloCfg());
+    lastCfgSig = trelloSig();
     setTimeout(() => syncFromTrello(), 0);
   },
 

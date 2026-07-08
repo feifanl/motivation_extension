@@ -17,7 +17,8 @@ let moveT: ReturnType<typeof setTimeout> | undefined;
 let onKey: ((e: KeyboardEvent) => void) | undefined;
 let onResize: (() => void) | undefined;
 let unsub: (() => void) | undefined;
-let wheelLock = 0;
+let wheelLock = 0; // last wheel-event time (for gap-based accumulator reset)
+let wheelAcc = 0; // accumulated wheel delta toward the next view step
 let lastMin = false;
 
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -147,15 +148,24 @@ function buildStage(): void {
   stage = h('div', { class: 'lc-stage' }, track);
   moduleHost.appendChild(h('div', { class: 'lc-root ui-enter' }, stage));
 
-  // discrete "picker" wheel: one view per gesture
+  // Wheel accumulator: sum deltas and step once per STEP_DELTA. A gap resets the
+  // accumulator so a new gesture starts fresh. This lets repeated scrolling keep
+  // advancing (one step per mouse notch / firm swipe) without a single flick's
+  // momentum over-shooting.
+  const STEP_DELTA = 90; // accumulated |deltaY| per view change
+  const GAP = 220; // ms with no wheel → new gesture
   stage.addEventListener(
     'wheel',
     (e) => {
       e.preventDefault();
       const t = Date.now();
-      if (t - wheelLock < 400) return;
+      if (t - wheelLock > GAP) wheelAcc = 0;
       wheelLock = t;
-      step(e.deltaY < 0 ? -1 : 1);
+      wheelAcc += e.deltaY;
+      while (Math.abs(wheelAcc) >= STEP_DELTA) {
+        step(wheelAcc < 0 ? -1 : 1);
+        wheelAcc -= Math.sign(wheelAcc) * STEP_DELTA;
+      }
     },
     { passive: false },
   );

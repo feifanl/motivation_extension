@@ -80,6 +80,8 @@ export interface Settings {
     trelloKey: string;
     trelloToken: string;
     trelloListId: string;
+    trelloBoardId: string; // board scanned when auto-weekday is on
+    trelloAutoWeekday: boolean; // pick the list whose name matches today's weekday
   };
   quote: {
     enabled: boolean;
@@ -121,7 +123,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
   lifeclock: { birthday: null, lifeExpectancyYears: 80, defaultView: 'month' },
   wallpaper: { mode: 'color', color: '#0d1117', url: '', dim: 0.35 },
-  todo: { trelloEnabled: false, trelloKey: '', trelloToken: '', trelloListId: '' },
+  todo: { trelloEnabled: false, trelloKey: '', trelloToken: '', trelloListId: '', trelloBoardId: '', trelloAutoWeekday: false },
   quote: { enabled: true, api: true, categories: ['philosophy', 'self-help', 'morality'] },
   pins: {
     enabled: false,

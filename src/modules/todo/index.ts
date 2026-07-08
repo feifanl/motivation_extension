@@ -217,9 +217,9 @@ function rebuild(): void {
   const prio = h(
     'select',
     { class: 'todo-prio-select' },
-    h('option', { value: 'high' }, 'H'),
-    h('option', { value: 'med', selected: true }, 'M'),
-    h('option', { value: 'low' }, 'L'),
+    h('option', { value: 'high' }, 'High'),
+    h('option', { value: 'med', selected: true }, 'Med'),
+    h('option', { value: 'low' }, 'Low'),
   );
   const submit = () => {
     const text = input.value.trim();

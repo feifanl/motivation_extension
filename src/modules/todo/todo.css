@@ -23,19 +23,8 @@
 }
 .todo-date {
   font-family: var(--font-display);
-  font-size: var(--fs-md);
-}
-.todo-sync {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text-dim);
-}
-.todo-sync.synced {
-  background: var(--primary);
-}
-.todo-sync.offline {
-  background: var(--text-dim);
+  font-size: 18px;
+  white-space: nowrap; /* weekday · month-day always on one line */
 }
 .todo-head-actions {
   display: flex;

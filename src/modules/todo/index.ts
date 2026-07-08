@@ -30,7 +30,6 @@ let state: TodoState = { items: [] };
 let dateEl: HTMLElement;
 let expandedId: string | null = null;
 let dateTick: ReturnType<typeof setInterval> | undefined;
-let syncStatus: 'off' | 'synced' | 'offline' = 'off';
 // Row to play the shine sweep on (the item just checked off), consumed once per rebuild.
 let justCompletedId: string | null = null;
 // Last-known "every item done" state — celebration fires only on the rising edge.
@@ -125,17 +124,13 @@ async function syncFromTrello(): Promise<void> {
   syncCursorToBoard(); // position the manual cursor for this board
   resolveWeekdayList(); // pick today's list before building the config
   const cfg = trelloCfg();
-  if (!cfg) {
-    syncStatus = 'off';
-    return;
-  }
+  if (!cfg) return;
   const targetList = cfg.listId;
   // Moving to a different list — a new weekday in auto mode, or an arrow press in
   // manual mode — rewrites the sidebar to mirror that list instead of appending.
   const isSwitch = state.syncedListId != null && state.syncedListId !== targetList;
   const cards = await trelloPull(cfg);
   if (cards === null) {
-    syncStatus = 'offline';
     rebuild();
     return;
   }
@@ -143,7 +138,6 @@ async function syncFromTrello(): Promise<void> {
     state.items = cards;
     state.syncedListId = targetList;
     await saveTodos(state);
-    syncStatus = 'synced';
     rebuild();
     return;
   }
@@ -188,7 +182,6 @@ async function syncFromTrello(): Promise<void> {
     changed = true;
   }
   if (changed) await saveTodos(state);
-  syncStatus = 'synced';
   rebuild();
 }
 
@@ -295,14 +288,6 @@ function rebuild(): void {
 
   dateEl = h('div', { class: 'todo-date' }, dateLabel());
   const left = h('div', { class: 'todo-head-left' }, dateEl);
-  if (syncStatus !== 'off') {
-    left.appendChild(
-      h('span', {
-        class: `todo-sync ${syncStatus}`,
-        title: syncStatus === 'synced' ? 'Synced with Trello' : 'Trello offline — local only',
-      }),
-    );
-  }
   const headActions = h('div', { class: 'todo-head-actions' });
   if (state.items.length) {
     headActions.appendChild(

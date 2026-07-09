@@ -41,6 +41,10 @@ let scrollCols: Loaded[][] = []; // pool packed into vertical columns
 let panoramaMode = false; // wall is currently the sliding strip
 let panoramaAnim: Animation | undefined; // the drift animation (paused while dragging)
 
+// ---- interval screen rotation ----
+const STEP_MS = 900; // ms slide duration for one column step (interval mode)
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 function localDayNumber(): number {
   const offset = new Date().getTimezoneOffset() * 60_000;
   return Math.floor((Date.now() - offset) / DAY);
@@ -253,6 +257,34 @@ function rebuildWall(): void {
   if (old) old.replaceWith(buildWallDom(currentLoaded));
 }
 
+// Interval rotation as a stepped panorama: the strip rests, then slides exactly
+// one column left at each tick. Same seamless wrap as the continuous drift — the
+// strip carries duplicate leading columns, so sliding onto the (n)th step looks
+// identical to column 0 and we snap back invisibly. Phase is wall-clock based so
+// reopening the tab resumes where the slide would be.
+function startSteppedScroll(strip: HTMLElement, intervalMs: number): void {
+  const { step } = colMetrics();
+  const n = scrollCols.length;
+  let k = (((Math.floor(Date.now() / intervalMs) % n) + n) % n); // current real column
+  strip.style.transform = `translateX(${-k * step}px)`;
+  screenTimer = setInterval(() => {
+    if (draggingIdx >= 0 || !strip.isConnected) return; // don't slide mid-rearrange
+    const from = -k * step;
+    k = (k + 1) % n; // bounded synchronously — never marches off the strip
+    // Where the slide visually LANDS: on a wrap, glide onto the duplicated set
+    // (-n*step, which looks identical to column 0) so the loop has no seam.
+    const animTo = k === 0 ? -n * step : -k * step;
+    // Resting inline transform the animation reverts to (no fill): the real,
+    // bounded position. For a wrap that's 0 — visually the same as -n*step.
+    strip.style.transform = `translateX(${-k * step}px)`;
+    if (reducedMotion) return; // no slide; the inline jump above is the whole move
+    strip.animate(
+      [{ transform: `translateX(${from}px)` }, { transform: `translateX(${animTo}px)` }],
+      { duration: STEP_MS, easing: 'ease-in-out' },
+    );
+  }, intervalMs);
+}
+
 // Re-pack the panorama columns from the current order, swapping children into
 // the EXISTING strip so its (paused) drift animation and transform survive.
 // Used during a drag so the layout previews the drop live and dims the source.
@@ -305,9 +337,10 @@ async function render(): Promise<void> {
 
   const sr = p.screenRotation ?? 'off';
 
-  // Panorama scroll: pack into columns and slide one column at a time. Pins stay
-  // draggable — the drift pauses while dragging (see startDrag/endDrag).
-  if (sr === 'scroll') {
+  // Column-strip modes: pack the pool into full-height columns and slide left.
+  // 'scroll' drifts continuously; 'interval' rests, then slides one column at
+  // each tick. Both keep pins draggable (drift/step pauses while dragging).
+  if (sr === 'scroll' || sr === 'interval') {
     const { cols, colW } = colMetrics();
     scrollCols = buildColumns(loaded, colW);
     if (scrollCols.length > cols) {
@@ -319,8 +352,14 @@ async function render(): Promise<void> {
       const kids: HTMLElement[] = [strip];
       if (p.mode === 'board' && p.boards.length > 1 && activeBoard) kids.push(boardSwitcher(activeBoard));
       host.replaceChildren(...kids);
-      const secs = p.screenScrollSeconds && p.screenScrollSeconds > 0 ? p.screenScrollSeconds : 20;
-      panoramaAnim = startPanorama(strip, secs);
+      if (sr === 'scroll') {
+        const secs = p.screenScrollSeconds && p.screenScrollSeconds > 0 ? p.screenScrollSeconds : 20;
+        panoramaAnim = startPanorama(strip, secs);
+      } else {
+        const m = p.screenIntervalMinutes && p.screenIntervalMinutes > 0 ? p.screenIntervalMinutes : 60;
+        panoramaAnim = undefined;
+        startSteppedScroll(strip, m * 60_000);
+      }
       return;
     }
     // pool fits on one screen → fall through to the static wall
@@ -353,11 +392,6 @@ async function render(): Promise<void> {
     }, m * 60_000);
   }
 
-  // Advance the on-screen page live while the tab stays open.
-  if ((p.screenRotation ?? 'off') === 'interval' && loaded.length > pageCapacity(loaded)) {
-    const m = p.screenIntervalMinutes && p.screenIntervalMinutes > 0 ? p.screenIntervalMinutes : 60;
-    screenTimer = setInterval(render, m * 60_000);
-  }
 }
 
 // Rotate the loaded pool by whole pages so a different screenful shows each

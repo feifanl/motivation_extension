@@ -15,6 +15,9 @@ export function addNote(list: StickyNote[], text: string, color: NoteColor): Sti
   const note: StickyNote = { id: crypto.randomUUID(), text: text.slice(0, 500), color, createdAt: Date.now() };
   return [note, ...list];
 }
+export function updateNote(list: StickyNote[], id: string, text: string): StickyNote[] {
+  return list.map((n) => (n.id === id ? { ...n, text: text.slice(0, 500) } : n));
+}
 
 function fmtDate(ms: number): string {
   return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -30,6 +33,7 @@ export function mountBoard(ctx: ModuleContext, onChange: () => void): void {
   let notes: StickyNote[] = [];
   let open = false;
   let closing = false; // true while the close fade is running (before detach)
+  let editingId: string | null = null; // note whose text is being edited inline
 
   const grid = h('div', { class: 'notes-grid' });
   const backdrop = h('div', { class: 'notes-backdrop', onClick: close });
@@ -51,22 +55,81 @@ export function mountBoard(ctx: ModuleContext, onChange: () => void): void {
       grid.replaceChildren(h('p', { class: 'notes-empty' }, 'No notes yet. Press + note to add one.'));
       return;
     }
-    grid.replaceChildren(
-      ...notes.map((n) =>
-        h(
-          'div',
-          { class: `note-card note-${n.color}`, 'data-id': n.id },
-          h('button', {
-            class: 'note-del',
-            title: 'Delete',
-            'aria-label': 'Delete note',
-            onClick: () => remove(n.id),
-          }, '×'),
-          h('div', { class: 'note-text' }, n.text),
-          h('div', { class: 'note-date' }, fmtDate(n.createdAt)),
-        ),
-      ),
+    grid.replaceChildren(...notes.map((n) => (editingId === n.id ? editCard(n) : viewCard(n))));
+    // focus the edit box (and drop the cursor at the end) once it's in the DOM
+    if (editingId) {
+      const ta = grid.querySelector<HTMLTextAreaElement>('.note-card.editing .note-edit-text');
+      if (ta) {
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+      }
+    }
+  }
+
+  // Static card. Clicking the text switches it into the edit form.
+  function viewCard(n: StickyNote): HTMLElement {
+    return h(
+      'div',
+      { class: `note-card note-${n.color}`, 'data-id': n.id },
+      h('button', {
+        class: 'note-del',
+        title: 'Delete',
+        'aria-label': 'Delete note',
+        onClick: () => remove(n.id),
+      }, '×'),
+      h('div', { class: 'note-text', title: 'Click to edit', onClick: () => beginEdit(n.id) }, n.text),
+      h('div', { class: 'note-date' }, fmtDate(n.createdAt)),
     );
+  }
+
+  // Edit form: textarea + Save/Cancel. Ctrl/⌘+Enter saves, Esc cancels.
+  function editCard(n: StickyNote): HTMLElement {
+    const ta = h('textarea', {
+      class: 'note-edit-text',
+      maxlength: 500,
+      value: n.text,
+    }) as HTMLTextAreaElement;
+    ta.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation(); // don't let Esc also close the board
+        cancelEdit();
+      } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        commitEdit(n.id, ta.value);
+      }
+    });
+    return h(
+      'div',
+      { class: `note-card note-${n.color} editing`, 'data-id': n.id },
+      ta,
+      h(
+        'div',
+        { class: 'note-edit-actions' },
+        h('button', { onClick: cancelEdit }, 'Cancel'),
+        h('button', { class: 'primary', onClick: () => commitEdit(n.id, ta.value) }, 'Save'),
+      ),
+      h('div', { class: 'note-date' }, fmtDate(n.createdAt)),
+    );
+  }
+
+  function beginEdit(id: string): void {
+    editingId = id;
+    render();
+  }
+
+  function cancelEdit(): void {
+    editingId = null;
+    render();
+  }
+
+  async function commitEdit(id: string, text: string): Promise<void> {
+    const t = text.trim();
+    editingId = null;
+    if (t) {
+      notes = updateNote(notes, id, t);
+      await saveNotes(ctx, notes);
+      onChange();
+    }
+    render();
   }
 
   async function commitRemove(id: string): Promise<void> {
@@ -101,6 +164,7 @@ export function mountBoard(ctx: ModuleContext, onChange: () => void): void {
 
   async function show(): Promise<void> {
     notes = await loadNotes(ctx);
+    editingId = null;
     render();
     if (open) return;
     open = true;

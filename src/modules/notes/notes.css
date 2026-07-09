@@ -210,6 +210,38 @@
   margin-right: var(--s-4);
   font-size: var(--fs-lg);
   line-height: 1.35;
+  cursor: text;
+}
+/* inline editor: reuse the paper look, no hover-scale to keep the caret steady */
+.note-card.editing:hover {
+  transform: none;
+}
+.note-edit-text {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  background: rgb(255 255 255 / 0.35);
+  border: 1px solid var(--note-accent);
+  border-radius: 2px;
+  color: var(--note-ink);
+  font-family: var(--font-hand);
+  font-size: var(--fs-lg);
+  line-height: 1.35;
+  padding: var(--s-2);
+}
+.note-edit-text:focus {
+  outline: none;
+  border-color: var(--note-ink);
+}
+.note-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+.note-edit-actions button {
+  font-size: var(--fs-xs);
+  padding: var(--s-1) var(--s-3);
 }
 .note-date { margin-top: var(--s-4); font-size: var(--fs-xs); color: var(--note-ink-dim); }
 .note-del {

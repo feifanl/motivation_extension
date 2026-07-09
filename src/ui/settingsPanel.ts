@@ -418,6 +418,22 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
           placeholder: field.placeholder,
           onChange: (e: Event) => onChange(Number((e.target as HTMLInputElement).value)),
         });
+      case 'range': {
+        const bubble = h('span', { class: 'range-value' }, String(value ?? field.min ?? 0));
+        const slider = h('input', {
+          type: 'range',
+          value: value ?? field.min ?? 0,
+          min: field.min,
+          max: field.max,
+          step: field.step,
+          // live-update the bubble while dragging; commit on change
+          onInput: (e: Event) => {
+            bubble.textContent = (e.target as HTMLInputElement).value;
+          },
+          onChange: (e: Event) => onChange(Number((e.target as HTMLInputElement).value)),
+        });
+        return h('div', { class: 'range-field' }, slider, bubble);
+      }
       case 'select':
         return h(
           'select',

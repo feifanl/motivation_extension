@@ -53,7 +53,7 @@ const schema: SettingsField[] = [
   },
   { key: 'wallpaper.color', label: 'Color', type: 'color' },
   { key: 'wallpaper.url', label: 'Image URL', type: 'text', placeholder: 'https://…' },
-  { key: 'wallpaper.dim', label: 'Dim overlay', type: 'number', min: 0, max: 0.8, step: 0.05 },
+  { key: 'wallpaper.dim', label: 'Dim overlay', type: 'range', min: 0, max: 0.8, step: 0.05 },
   {
     key: 'wallpaper.image',
     label: 'Upload image',

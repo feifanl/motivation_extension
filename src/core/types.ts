@@ -33,7 +33,7 @@ export interface ModuleContext {
 export interface SettingsField {
   key: string; // dot-path inside Settings, e.g. "lifeclock.birthday"
   label: string;
-  type: 'text' | 'date' | 'number' | 'select' | 'toggle' | 'textarea' | 'file' | 'color' | 'list' | 'pins';
+  type: 'text' | 'date' | 'number' | 'range' | 'select' | 'toggle' | 'textarea' | 'file' | 'color' | 'list' | 'pins';
   options?: { value: string; label: string }[]; // for select
   min?: number;
   max?: number; // for number

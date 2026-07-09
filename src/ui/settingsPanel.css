@@ -155,21 +155,146 @@
 }
 .field-label {
   font-size: var(--fs-sm);
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
-.field input:not([type='checkbox']):not([type='color']),
-.field select,
-.field textarea {
+
+/* Controls inside the settings panel: sit on a translucent surface (not the
+   near-black --bg) so they read as raised inputs against the glass, with a
+   clear focus ring. */
+.settings-body .field input:not([type='checkbox']):not([type='color']):not([type='range']),
+.settings-body .field select,
+.settings-body .field textarea,
+.settings-body .settings-list textarea {
   width: 100%;
+  min-height: 38px;
+  padding: var(--s-2) var(--s-3);
+  background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast), background var(--t-fast);
 }
+.settings-body .field textarea {
+  min-height: auto;
+}
+.settings-body .field input:hover:not(:focus),
+.settings-body .field select:hover:not(:focus),
+.settings-body .field textarea:hover:not(:focus) {
+  border-color: var(--text-dim);
+}
+.settings-body .field input:not([type='checkbox']):not([type='color']):not([type='range']):focus,
+.settings-body .field select:focus,
+.settings-body .field textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+/* Larger, cleanly rounded colour swatch. */
 .field input[type='color'] {
-  width: 48px;
-  height: 32px;
-  padding: 2px;
+  width: 56px;
+  height: 38px;
+  padding: 3px;
+  background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.field input[type='color']:hover {
+  border-color: var(--text-dim);
+}
+.field input[type='color']:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+.field input[type='color']::-webkit-color-swatch-wrapper { padding: 0; }
+.field input[type='color']::-webkit-color-swatch { border: none; border-radius: 4px; }
+
+/* Styled native file picker button. */
+.settings-body .field input[type='file'] {
+  width: 100%;
+  padding: 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: border-color var(--t-fast);
+}
+.settings-body .field input[type='file']:hover { border-color: var(--text-dim); }
+.settings-body .field input[type='file']::file-selector-button {
+  margin-right: var(--s-3);
+  padding: 6px var(--s-3);
+  font-family: var(--font-text);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.settings-body .field input[type='file']::file-selector-button:hover {
+  border-color: var(--primary);
+}
+
+/* Range slider with a live value chip. */
+.range-field {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.range-field input[type='range'] {
+  flex: 1;
+  height: 6px;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--surface-2);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.range-field input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid #fff;
+  box-shadow: var(--elev-1);
+  cursor: pointer;
+}
+.range-field input[type='range']::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid #fff;
+  box-shadow: var(--elev-1);
+  cursor: pointer;
+}
+.range-field input[type='range']:focus { outline: none; }
+.range-field input[type='range']:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+.range-value {
+  min-width: 40px;
+  padding: 2px var(--s-2);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
 }
 .field-help {
   margin: 0;
   font-size: var(--fs-xs);
+  line-height: 1.45;
   color: var(--text-dim);
 }
 .field-error:empty {

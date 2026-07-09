@@ -35,6 +35,7 @@ export interface SettingsField {
   label: string;
   type: 'text' | 'date' | 'number' | 'range' | 'select' | 'toggle' | 'textarea' | 'file' | 'color' | 'list' | 'pins';
   options?: { value: string; label: string }[]; // for select
+  numeric?: boolean; // select: store the chosen option value as a number, not a string
   min?: number;
   max?: number; // for number
   step?: number; // for number
@@ -131,9 +132,12 @@ export const DEFAULT_SETTINGS: Settings = {
     mode: 'board',
     activeBoardId: null,
     boardRotation: 'off',
+    boardIntervalMinutes: 60,
     allRotation: 'daily',
+    allIntervalMinutes: 60,
     allIndex: 0,
     screenRotation: 'off',
+    screenIntervalMinutes: 5,
     screenScrollSeconds: 100,
   },
   notes: { enabled: true },

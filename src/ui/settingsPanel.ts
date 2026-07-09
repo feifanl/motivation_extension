@@ -439,7 +439,10 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
           'select',
           {
             value: String(value ?? ''),
-            onChange: (e: Event) => onChange((e.target as HTMLSelectElement).value),
+            onChange: (e: Event) => {
+              const raw = (e.target as HTMLSelectElement).value;
+              onChange(field.numeric ? Number(raw) : raw);
+            },
           },
           ...(field.options ?? []).map((o) =>
             h('option', { value: o.value, selected: String(value) === o.value }, o.label),

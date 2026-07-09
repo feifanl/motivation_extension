@@ -608,9 +608,20 @@ const schema: SettingsField[] = [
   },
   {
     key: 'pins.screenIntervalMinutes',
-    label: 'Screen rotation interval (min)',
-    type: 'number',
-    min: 1,
+    label: 'Screen rotation interval',
+    type: 'select',
+    numeric: true, // fractional minutes: 0.25 = 15s, 0.5 = 30s
+    options: [
+      { value: '0.25', label: '15 seconds' },
+      { value: '0.5', label: '30 seconds' },
+      { value: '1', label: '1 minute' },
+      { value: '2', label: '2 minutes' },
+      { value: '5', label: '5 minutes' },
+      { value: '10', label: '10 minutes' },
+      { value: '15', label: '15 minutes' },
+      { value: '30', label: '30 minutes' },
+      { value: '60', label: '1 hour' },
+    ],
     showIf: (s) => s.pins.screenRotation === 'interval',
   },
   {

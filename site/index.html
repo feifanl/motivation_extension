@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy Policy — Memento Mori New Tab</title>
+    <meta
+      name="description"
+      content="Privacy policy for the Memento Mori Motivation Extension (New Tab)."
+    />
+    <style>
+      :root {
+        --bg: #0d1117;
+        --surface: #161b22;
+        --border: #30363d;
+        --text: #e6edf3;
+        --text-dim: #8b949e;
+        --accent: #238636;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #ffffff;
+          --surface: #f6f8fa;
+          --border: #d0d7de;
+          --text: #1f2328;
+          --text-dim: #656d76;
+          --accent: #1a7f37;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        padding: 3rem 1.25rem;
+      }
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+      }
+      h1 { font-size: 1.9rem; margin: 0 0 0.25rem; }
+      h2 {
+        font-size: 1.15rem;
+        margin: 2.25rem 0 0.6rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--border);
+      }
+      .updated { color: var(--text-dim); font-size: 0.9rem; margin: 0 0 1.5rem; }
+      p { margin: 0.6rem 0; }
+      ul { margin: 0.6rem 0; padding-left: 1.25rem; }
+      li { margin: 0.35rem 0; }
+      a { color: var(--accent); }
+      code {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0.05em 0.35em;
+        font-size: 0.9em;
+      }
+      strong { color: var(--text); }
+      footer { margin-top: 2.5rem; color: var(--text-dim); font-size: 0.9rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Privacy Policy</h1>
+      <p class="updated">
+        Memento Mori Motivation Extension (New Tab) · Last updated 2026-07-12
+      </p>
+
+      <p>
+        This extension replaces the browser's New Tab page with a personal
+        dashboard (to-do list, sticky notes, quotes, image pin boards, a
+        life-progress clock, and a search box). This policy explains what data it
+        handles.
+      </p>
+
+      <h2>Summary</h2>
+      <ul>
+        <li>
+          The extension has <strong>no backend server</strong>. The developer
+          does not collect, receive, sell, or share any of your data.
+        </li>
+        <li>
+          Everything you create — settings, to-dos, sticky notes, pinned images,
+          and wallpaper — is stored <strong>locally on your device</strong> via
+          the browser's <code>chrome.storage.local</code> API.
+        </li>
+        <li>
+          Data leaves your device only through <strong>two optional features you
+          turn on yourself</strong>, and then only to the third-party service
+          that provides that feature.
+        </li>
+      </ul>
+
+      <h2>Data stored locally on your device</h2>
+      <ul>
+        <li>
+          <strong>Dashboard content and preferences:</strong> enabled features,
+          theme, wallpaper choice, to-do items, sticky notes, and life-clock
+          configuration.
+        </li>
+        <li>
+          <strong>Pinned images (website content):</strong> image URLs, or
+          images you upload or paste, saved to your pin boards. Stored locally as
+          data.
+        </li>
+        <li>
+          <strong>Authentication information:</strong> if you enable Trello sync,
+          your Trello API key and token are stored locally so the extension can
+          talk to Trello on your behalf. They are never sent to the developer or
+          to anyone other than Trello.
+        </li>
+      </ul>
+      <p>
+        This data stays on your device. Uninstalling the extension or clearing
+        browser data removes it.
+      </p>
+
+      <h2>Third-party services (optional)</h2>
+      <ul>
+        <li>
+          <strong>Trello (api.trello.com):</strong> Only if you enable Trello
+          sync and enter your own Trello API key and token. The extension reads
+          the cards in the list you choose and creates, updates, completes, or
+          deletes cards so your to-do list mirrors your own Trello board. This
+          data is exchanged only between your browser and Trello, using your own
+          credentials. See Trello's privacy policy for how Trello handles it.
+        </li>
+        <li>
+          <strong>ZenQuotes (zenquotes.io):</strong> Fetches an inspirational
+          quote to display. The extension only makes outbound requests to
+          retrieve quotes; it sends none of your data. You can disable this and
+          use bundled offline quotes.
+        </li>
+      </ul>
+      <p>Neither service is contacted unless you enable the corresponding feature.</p>
+
+      <h2>What the developer does not do</h2>
+      <ul>
+        <li>Does not sell or transfer your data to third parties.</li>
+        <li>
+          Does not use or transfer your data for any purpose unrelated to
+          providing this New Tab dashboard.
+        </li>
+        <li>Does not use your data to determine creditworthiness or for lending.</li>
+        <li>Does not use remote code; all extension code ships in the package.</li>
+      </ul>
+
+      <h2>Contact</h2>
+      <p>Questions: <a href="mailto:feifan.liu@utexas.edu">feifan.liu@utexas.edu</a></p>
+
+      <footer>Memento Mori Motivation Extension — New Tab dashboard.</footer>
+    </main>
+  </body>
+</html>

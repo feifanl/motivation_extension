@@ -612,12 +612,21 @@ const schema: SettingsField[] = [
   {
     key: 'pins.boards',
     label: 'Boards',
+    itemLabel: 'Board',
     type: 'list',
     newItem: () => ({ id: crypto.randomUUID(), name: '', pins: [], rotation: 'off', index: 0 }),
     itemFields: [
       { key: 'name', label: 'Name', type: 'text', placeholder: 'hopecore' },
       { key: 'pins', label: 'Pins', type: 'pins' },
     ],
+  },
+  {
+    key: 'pins.activeBoardId',
+    label: 'Board to show',
+    type: 'select',
+    options: (s) => s.pins.boards.map((b) => ({ value: b.id, label: b.name || 'Untitled board' })),
+    help: 'Which board fills the page. Applies when auto-switch is off.',
+    showIf: (s) => s.pins.mode === 'board' && s.pins.boards.length > 1 && s.pins.boardRotation === 'off',
   },
   {
     key: 'pins.boardRotation',

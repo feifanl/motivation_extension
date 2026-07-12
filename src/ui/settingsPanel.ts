@@ -68,7 +68,8 @@ function pinEditor(value: Pin[], onChange: (pins: Pin[]) => void): HTMLElement {
   const urls = h('textarea', {
     class: 'pin-edit-urls',
     rows: 3,
-    placeholder: 'Paste image URLs (one per line), or drop / paste an image anywhere in this box.',
+    placeholder:
+      'Paste image URLs (one per line), or drop / paste an image anywhere in this box.\n\nOr right-click any image on the web → “Add image to pins board”.',
   }) as HTMLTextAreaElement;
   const addBtn = h(
     'button',
@@ -87,6 +88,11 @@ function pinEditor(value: Pin[], onChange: (pins: Pin[]) => void): HTMLElement {
     { class: 'pin-edit' },
     grid,
     h('div', { class: 'pin-edit-row' }, urls, addBtn),
+    h(
+      'p',
+      { class: 'pin-edit-hint' },
+      'Tip: browsing the web, right-click any image and choose “Add image to pins board” to save it straight here.',
+    ),
   );
 
   box.addEventListener('dragover', (e) => {
@@ -130,6 +136,7 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
   if (!corner) return;
 
   let activeTab = ''; // which tab's section shows; render() defaults to the first tab
+  const collapsedRows = new Set<string>(); // list rows folded shut (keyed by row id/index)
 
   const gear = h('button', { class: 'settings-gear', title: 'Settings', 'aria-label': 'Settings' }, '⚙');
   const backdrop = h('div', { class: 'settings-backdrop' });
@@ -335,32 +342,64 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
   function renderList(field: SettingsField): HTMLElement {
     const arr = ((getByPath(ctx.settings, field.key) as Record<string, unknown>[]) ?? []).slice();
     const itemFields = field.itemFields ?? [];
+    // Title shown on a collapsed row: the first text field's value (e.g. a board's name).
+    const titleKey = itemFields.find((f) => f.type === 'text')?.key;
 
-    const rowsEl = arr.map((row, i) =>
-      h(
+    const rowsEl = arr.map((row, i) => {
+      const rid = String(row.id ?? `${field.key}:${i}`);
+      const folded = collapsedRows.has(rid);
+      const title =
+        (titleKey ? String(row[titleKey] ?? '').trim() : '') || `${field.itemLabel ?? field.label} ${i + 1}`;
+
+      const fields = itemFields.map((sf) =>
+        fieldWrap(
+          sf,
+          controlFor(sf, row[sf.key], (v) => {
+            const next = arr.slice();
+            next[i] = { ...row, [sf.key]: v };
+            saveArray(field.key, next);
+          }),
+          sf.type === 'toggle',
+        ),
+      );
+
+      const head = h(
         'div',
-        { class: 'list-row' },
-        ...itemFields.map((sf) =>
-          fieldWrap(
-            sf,
-            controlFor(sf, row[sf.key], (v) => {
-              const next = arr.slice();
-              next[i] = { ...row, [sf.key]: v };
-              saveArray(field.key, next);
-            }),
-            sf.type === 'toggle',
-          ),
+        { class: 'list-row-head' },
+        h(
+          'button',
+          {
+            class: 'list-row-toggle',
+            'aria-expanded': String(!folded),
+            onClick: () => {
+              if (folded) collapsedRows.delete(rid);
+              else collapsedRows.add(rid);
+              render();
+            },
+          },
+          h('span', { class: 'list-caret' + (folded ? ' folded' : '') }, '▾'),
+          h('span', { class: 'list-row-title' }, title),
         ),
         h(
           'button',
           {
             class: 'list-remove',
-            onClick: () => saveArray(field.key, arr.filter((_, j) => j !== i)),
+            onClick: () => {
+              collapsedRows.delete(rid);
+              saveArray(field.key, arr.filter((_, j) => j !== i));
+            },
           },
           'Remove',
         ),
-      ),
-    );
+      );
+
+      return h(
+        'div',
+        { class: 'list-row' + (folded ? ' collapsed' : '') },
+        head,
+        folded ? null : h('div', { class: 'list-row-body' }, ...fields),
+      );
+    });
 
     const addBtn = h(
       'button',
@@ -388,7 +427,13 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
     const row: Record<string, unknown> = {};
     for (const f of itemFields) {
       row[f.key] =
-        f.type === 'number' ? (f.min ?? 0) : f.type === 'toggle' ? false : f.options ? f.options[0]?.value : '';
+        f.type === 'number'
+          ? (f.min ?? 0)
+          : f.type === 'toggle'
+            ? false
+            : Array.isArray(f.options)
+              ? f.options[0]?.value
+              : '';
     }
     return row;
   }
@@ -434,7 +479,8 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
         });
         return h('div', { class: 'range-field' }, slider, bubble);
       }
-      case 'select':
+      case 'select': {
+        const opts = typeof field.options === 'function' ? field.options(ctx.settings) : field.options ?? [];
         return h(
           'select',
           {
@@ -444,10 +490,11 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
               onChange(field.numeric ? Number(raw) : raw);
             },
           },
-          ...(field.options ?? []).map((o) =>
+          ...opts.map((o) =>
             h('option', { value: o.value, selected: String(value) === o.value }, o.label),
           ),
         );
+      }
       case 'textarea':
         return h('textarea', {
           rows: 4,

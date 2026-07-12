@@ -34,7 +34,9 @@ export interface SettingsField {
   key: string; // dot-path inside Settings, e.g. "lifeclock.birthday"
   label: string;
   type: 'text' | 'date' | 'number' | 'range' | 'select' | 'toggle' | 'textarea' | 'file' | 'color' | 'list' | 'pins';
-  options?: { value: string; label: string }[]; // for select
+  // for select: a static list, or a function computing options from live settings
+  // (e.g. one option per pin board, so the list tracks the user's boards)
+  options?: { value: string; label: string }[] | ((settings: Settings) => { value: string; label: string }[]);
   numeric?: boolean; // select: store the chosen option value as a number, not a string
   min?: number;
   max?: number; // for number
@@ -42,6 +44,7 @@ export interface SettingsField {
   placeholder?: string;
   help?: string;
   itemFields?: SettingsField[]; // for 'list': schema of one row; value is an array of objects
+  itemLabel?: string; // for 'list': singular name for a row when it has no title yet (e.g. "Board")
   newItem?: () => Record<string, unknown>; // for 'list': factory for a new row (e.g. id/index defaults)
   parse?: (raw: string) => unknown; // textarea/text: string → stored value (e.g. lines → Pin[])
   format?: (val: unknown) => string; // textarea/text: stored value → string for display

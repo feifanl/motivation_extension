@@ -14,6 +14,20 @@ const DAY = 86_400_000;
 const MAX_TILES = 60; // cap distinct images laid out (no repetition beyond this)
 const GAP = 8; // px between tiles; matches CSS
 
+// The wall is laid out on the zoom-root's virtual canvas (viewport / --z), so
+// masonry must measure that canvas, not the raw viewport, or it leaves a gutter
+// once the deck is scaled down. --z defaults to 1 (no zoom).
+function zoom(): number {
+  const z = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--z'));
+  return z > 0 ? z : 1;
+}
+function canvasW(): number {
+  return window.innerWidth / zoom();
+}
+function canvasH(): number {
+  return window.innerHeight / zoom();
+}
+
 let ctx: ModuleContext;
 let host: HTMLElement;
 let boardTimer: ReturnType<typeof setInterval> | undefined;
@@ -76,8 +90,8 @@ function clearTimers(): void {
 // "page" size the screen rotation advances by. Uses the same packing math as
 // buildWallDom, no DOM measuring.
 function pageCapacity(loaded: Loaded[]): number {
-  const viewH = window.innerHeight;
-  const avail = window.innerWidth - GAP * 2;
+  const viewH = canvasH();
+  const avail = canvasW() - GAP * 2;
   const cols = Math.max(1, Math.round(avail / TARGET_COL));
   const colW = (avail - GAP * (cols - 1)) / cols;
   const colH = new Array(cols).fill(0);
@@ -145,7 +159,7 @@ function tile(l: Loaded, idx: number, drag = true): HTMLElement {
 function buildWallDom(loaded: Loaded[]): HTMLElement {
   const wall = h('div', { class: 'pins-wall' });
 
-  const avail = window.innerWidth - GAP * 2;
+  const avail = canvasW() - GAP * 2;
   const cols = Math.max(1, Math.round(avail / TARGET_COL));
   const colW = (avail - GAP * (cols - 1)) / cols;
   const colH = new Array(cols).fill(0); // running height of each column
@@ -173,14 +187,14 @@ function buildWallDom(loaded: Loaded[]): HTMLElement {
 // Column width chosen so an integer number of columns fills the viewport exactly
 // (no black gutter on the right), matching the masonry wall's sizing.
 function colMetrics(): { cols: number; colW: number; step: number } {
-  const avail = window.innerWidth - GAP * 2;
+  const avail = canvasW() - GAP * 2;
   const cols = Math.max(1, Math.round(avail / TARGET_COL));
   const colW = (avail - GAP * (cols - 1)) / cols;
   return { cols, colW, step: colW + GAP };
 }
 
 function buildColumns(loaded: Loaded[], colW: number): Loaded[][] {
-  const viewH = window.innerHeight;
+  const viewH = canvasH();
   const cols: Loaded[][] = [];
   let cur: Loaded[] = [];
   let curH = GAP;

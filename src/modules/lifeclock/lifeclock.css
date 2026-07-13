@@ -30,7 +30,7 @@
 /* carousel stage: transform-driven vertical picker */
 .lc-stage {
   position: relative;
-  height: 60vh; /* fallback before JS sizes it to the active pane */
+  height: calc(60vh / var(--z, 1)); /* fallback before JS sizes it to the active pane */
   overflow: hidden;
   transition: height var(--t-med);
 }
@@ -52,6 +52,11 @@
   position: relative;
   width: 100%;
   max-width: 520px;
+  /* Never let a tall view (year grid on a short/narrow window) run past the
+     viewport and hide under the quote — cap it and scroll inside instead. */
+  max-height: calc(100vh / var(--z, 1) - var(--quote-reserve) - var(--s-8));
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--s-5);
   border-radius: var(--r-lg);
   background: var(--glass-bg);

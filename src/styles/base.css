@@ -38,6 +38,22 @@ body {
   background: transparent;
 }
 
+/* Inverse-scale canvas: laid out at viewport / --z (a larger virtual screen)
+   then scaled back down by --z, so the whole dashboard reads as "zoomed out" on
+   smaller windows — everything shrinks uniformly and more fits. Fixed children
+   anchor to this frame (transform makes it their containing block), so their
+   corners map to the real viewport corners after scaling. Viewport-relative
+   lengths inside here are divided by --z so they measure the virtual canvas. */
+.zoom-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: calc(100vw / var(--z, 1));
+  height: calc(100vh / var(--z, 1));
+  transform: scale(var(--z, 1));
+  transform-origin: top left;
+}
+
 .slot-background { position: fixed; inset: 0; z-index: 0; }
 
 /* Centered content column. Only occupies the middle band so the pins wall
@@ -51,7 +67,7 @@ body {
   width: 100%;
   max-width: var(--content-w);
   margin: 0 auto;
-  min-height: 100vh;
+  min-height: calc(100vh / var(--z, 1));
   /* extra bottom padding reserves the band the fixed quote sits in, so the
      centered clock never overlaps it */
   padding: var(--s-6) var(--s-4) var(--quote-reserve);
@@ -69,7 +85,7 @@ body {
   left: 50%;
   bottom: var(--s-5);
   transform: translateX(-50%);
-  width: min(var(--content-w), calc(100vw - 2 * var(--s-5)));
+  width: min(var(--content-w), calc(100vw / var(--z, 1) - 2 * var(--s-5)));
   z-index: 4;
   pointer-events: auto;
 }
@@ -90,7 +106,7 @@ body {
   width: var(--sidebar-w);
   /* stop the list short of the bottom-left corner controls (notes + settings)
      so its text never slides under them */
-  max-height: calc(100vh - var(--s-5) - var(--corner-reserve));
+  max-height: calc(100vh / var(--z, 1) - var(--s-5) - var(--corner-reserve));
   overflow-y: auto;
   z-index: 3;
   pointer-events: auto; /* re-enable: parent .layout is pointer-events:none */
@@ -175,6 +191,3 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--primary);
 }
 
-@media (max-width: 900px) {
-  .layout { grid-template-columns: 1fr; }
-}

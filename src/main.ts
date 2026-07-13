@@ -18,7 +18,28 @@ function applyGlass(on: boolean): void {
   document.documentElement.dataset.glass = on ? 'on' : 'off';
 }
 
+// Drive the --z zoom factor: below BASE the dashboard lays out on a virtual
+// canvas of BASE size and scales down (see .zoom-root), so a smaller window
+// shows a zoomed-out full-screen — pins, life clock, sidebar all shrink and more
+// fits. BASE_W sits just above the width the sidebar+centred column need to not
+// overlap, so the canvas never falls below it and the layout stays overlap-free
+// without any per-breakpoint reflow. Set on <html> so every CSS `/ var(--z)` and
+// the pins masonry (which reads it) pick it up.
+function installZoom(): void {
+  const BASE_W = 1220;
+  const BASE_H = 780;
+  const MIN = 0.4;
+  const apply = (): void => {
+    const z = Math.max(MIN, Math.min(1, window.innerWidth / BASE_W, window.innerHeight / BASE_H));
+    document.documentElement.style.setProperty('--z', String(Math.round(z * 1000) / 1000));
+  };
+  window.addEventListener('resize', apply);
+  apply();
+}
+
 async function boot(): Promise<void> {
+  installZoom(); // set --z before anything mounts so first paint is scaled right
+
   const settings = await loadSettings();
   applyTheme(settings.theme);
   applyGlass(settings.ui.glass);

@@ -14,7 +14,15 @@ export async function mountAll(ctx: ModuleContext, root: HTMLElement): Promise<v
   const layout = h('div', { class: 'layout' }, sidebar, main);
   const corner = h('div', { class: 'slot-corner' });
   const overlay = h('div', { class: 'slot-overlay' });
-  root.append(background, layout, corner, overlay);
+  // Everything on-screen lives inside a "zoom root" laid out on a virtually
+  // larger canvas (width/height = viewport / --z) and then scaled back down by
+  // --z (see main.ts / installZoom, base.css .zoom-root). This is a true
+  // zoom-out: on smaller windows the whole dashboard — pins, life clock, sidebar,
+  // and the modals (notes board + settings drawer) — shrinks uniformly and more
+  // fits, instead of reflowing. The notes overlay lives in here; the settings
+  // drawer mounts into it too (see settingsPanel.ts).
+  const zoomRoot = h('div', { class: 'zoom-root' }, background, layout, corner, overlay);
+  root.append(zoomRoot);
 
   const containers: Record<Slot, HTMLElement> = {
     background,

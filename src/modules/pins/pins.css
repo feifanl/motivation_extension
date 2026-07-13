@@ -36,13 +36,13 @@
   position: fixed;
   top: 0;
   left: 0;
-  height: 100vh;
+  height: calc(100vh / var(--z, 1));
   will-change: transform;
 }
 .pins-col {
   position: absolute;
   top: 0;
-  height: 100vh;
+  height: calc(100vh / var(--z, 1));
   overflow: hidden; /* clip the bottom tile that fills past the edge */
 }
 

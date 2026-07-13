@@ -189,7 +189,9 @@ export function mountSettingsPanel(ctx: ModuleContext): void {
   );
 
   corner.appendChild(gear);
-  document.body.append(backdrop, panel);
+  // Live inside the zoom root so the drawer scales with the rest of the
+  // dashboard (matching --z) instead of floating full-size over a zoomed page.
+  (document.querySelector('.zoom-root') ?? document.body).append(backdrop, panel);
 
   function syncThemeBtn(): void {
     const dark = ctx.settings.theme === 'dark';

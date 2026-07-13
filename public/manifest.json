@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Memento Mori: A Motivation Extension",
-  "version": "0.1.0",
-  "description": "A memento-mori dashboard: life clock, daily todos, quotes, and Pinterest pins.",
+  "name": "Inspire - A Better New Tab",
+  "version": "0.1.1",
+  "description": "A better new tab: life clock, daily todos, quotes, sticky notes, and a Pinterest-style pins wall.",
   "chrome_url_overrides": { "newtab": "newtab.html" },
   "background": { "service_worker": "background.js", "type": "module" },
   "permissions": ["storage", "unlimitedStorage", "contextMenus"],

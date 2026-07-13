@@ -130,8 +130,15 @@ body {
   position: fixed;
   inset: 0;
   z-index: 10;
+  /* Always holds the (fixed) help button, so it can't collapse; stay transparent
+     to pointers and let only its real interactive children (help button, and the
+     help/notes overlays) catch clicks. Otherwise this full-screen layer would
+     block the dashboard behind it. */
+  pointer-events: none;
 }
-.slot-overlay:empty { display: none; }
+.slot-overlay .help-btn,
+.slot-overlay .help-overlay,
+.slot-overlay .notes-overlay { pointer-events: auto; }
 
 .card {
   background: var(--glass-bg-strong);

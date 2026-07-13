@@ -1,6 +1,6 @@
 {
-  "name": "memento-mori-motivation-extension",
-  "version": "0.1.0",
+  "name": "inspire-a-better-new-tab",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
